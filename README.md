@@ -54,4 +54,4 @@ This split is intentionally conservative so behavior stays aligned with the work
 
 ## Tomato Joke
 
-Why did the tomato turn red? Because it saw the salad dressing! 🍅
+Why did the tomato turn red? Because it saw the salad dressing! 🍅 🍅

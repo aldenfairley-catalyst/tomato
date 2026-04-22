@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOMATO BILLIONAIRE</title>
+<link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+<div id="wrap">
+    <canvas id="game-canvas" width="1280" height="760"></canvas>
+  </div>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <!-- Sprite Editor Overlay -->
+  <div id="editor-overlay">
+    <div id="ed-left">
+      <div class="panel">
+        <h2>SPRITE EDITOR</h2>
+        <div class="hint">Press <kbd>`</kbd> to resume game</div>
+      </div>
+      <div class="panel">
+        <h3>Sprites</h3>
+        <div id="ed-sprite-list"></div>
+        <div class="hint" style="margin-top:8px;">Click a sprite to edit. Animated sprites share frames.</div>
+      </div>
+      <div class="panel">
+        <h3>New Sprite</h3>
+        <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+          <label>Size:</label>
+          <select id="ed-new-size">
+            <option value="8">8x8</option>
+            <option value="16" selected>16x16</option>
+            <option value="32">32x32</option>
+            <option value="64">64x64</option>
+          </select>
+        </div>
+        <input id="ed-new-name" type="text" placeholder="sprite_name" style="width:100%; padding:4px; background:#222240; color:#ddd; border:1px solid #556; font-family:monospace;">
+        <button id="ed-new-btn" style="width:100%; margin-top:6px;">Create New Sprite</button>
+      </div>
+    </div>
+
+    <div id="ed-center">
+      <div class="panel" style="width:100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 id="ed-current-name" style="border:none; margin:0;">No sprite selected</h3>
+          <div>
+            <button id="ed-save-game">Apply to Game</button>
+            <button id="ed-export-btn">Export JS</button>
+          </div>
+        </div>
+      </div>
+      <div id="ed-canvas-box">
+        <canvas id="ed-canvas"></canvas>
+      </div>
+      <div class="panel" style="width:100%;">
+        <h3>Frames</h3>
+        <div id="ed-frames"></div>
+        <div class="tool-row">
+          <button id="ed-add-frame">+ Add Frame</button>
+          <button id="ed-dup-frame">Duplicate</button>
+          <button id="ed-del-frame">Delete</button>
+          <button id="ed-clear-frame">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ed-right">
+      <div class="panel">
+        <h3>Preview</h3>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <canvas id="ed-preview" width="96" height="96"></canvas>
+          <div style="font-size:11px;">
+            <div>Speed (ms/frame):</div>
+            <input id="ed-anim-speed" type="number" value="500" min="50" max="2000" step="50" style="width:70px; padding:2px;">
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Palette</h3>
+        <div id="ed-palette"></div>
+        <div id="ed-color-picker-row">
+          <input type="color" id="ed-color-input">
+          <button id="ed-color-set">Recolour Selected</button>
+        </div>
+        <div class="hint">Palette changes apply everywhere instantly.</div>
+        <div class="tool-row">
+          <button class="tool-btn active" data-tool="draw">Draw</button>
+          <button class="tool-btn" data-tool="erase">Erase</button>
+          <button class="tool-btn" data-tool="fill">Fill</button>
+          <button class="tool-btn" data-tool="pick">Pick</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Game State</h3>
+        <div id="ed-gamestate-info" style="font-size:11px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ed-export-modal">
+    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+      <h2 style="color:var(--amber); margin:0;">Exported Sprite Data</h2>
+      <button onclick="document.getElementById('ed-export-modal').classList.remove('open')">Close</button>
+    </div>
+    <textarea id="ed-export-text" readonly></textarea>
+    <button id="ed-copy-export" style="margin-top:8px;">Copy to Clipboard</button>
+  </div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

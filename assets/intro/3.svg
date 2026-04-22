@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
+  <rect width="1280" height="760" fill="#0a0a1e"/>
+  <rect x="40" y="40" width="1200" height="680" rx="24" fill="#161633" stroke="#ffaa00" stroke-width="6"/>
+  <text x="640" y="210" text-anchor="middle" font-family="Courier New, monospace" font-size="72" fill="#ff4444">COMIC PANEL 3</text>
+  <text x="640" y="340" text-anchor="middle" font-family="Courier New, monospace" font-size="28" fill="#ffffff">Placeholder intro art goes here</text>
+  <text x="640" y="395" text-anchor="middle" font-family="Courier New, monospace" font-size="22" fill="#ffcc66">Replace assets/intro/3.svg with final comic image</text>
+  <text x="640" y="520" text-anchor="middle" font-family="Courier New, monospace" font-size="26" fill="#66ddff">Password gate: CULTIVATE</text>
+  </svg>

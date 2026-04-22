@@ -1,0 +1,84 @@
+{
+  "results": {
+    "bootGate": "gate",
+    "afterPassword": "comic",
+    "afterComic": {
+      "phase": "intro",
+      "unlocked": true
+    },
+    "playingStart": "playing",
+    "book": {
+      "hasBook": true,
+      "availableAfterBuy": false,
+      "gagTitle": "Machine Learning for Dummies"
+    },
+    "launchpad": {
+      "purchasedFlag": true,
+      "padPending": true,
+      "nukeUnlocked": true,
+      "availableAfterBuy": false
+    },
+    "restartReset": {
+      "phase": "intro",
+      "flags": {
+        "launchPadPurchased": false,
+        "tomatoAttackStories": 0
+      }
+    },
+    "nuke": {
+      "plantRadiated": true,
+      "announcement": [
+        "ALERT",
+        "",
+        "NUCLEAR FALLOUT HAS BEEN DETECTED.",
+        "Nearby plants and pests are now irradiated.",
+        "Shelf life may be reduced.",
+        "Do not consume anything with opinions."
+      ],
+      "nukeFX": true,
+      "cash": 9000
+    },
+    "mutant": {
+      "flags": {
+        "launchPadPurchased": false,
+        "tomatoAttackStories": 1
+      },
+      "tickerTail": "BREAKING: local authorities confirm a hostile tomato incident. Public advised to remain crunchy but calm.   +++   Rubber duck futures surge after ML community admits none of them understand the bugs anymore.   +++   ",
+      "pestTypes": [
+        "mutant"
+      ]
+    },
+    "shareEnding": {
+      "phase": "gameover",
+      "reason": "shareholder"
+    },
+    "minesEnding": {
+      "phase": "gameover",
+      "reason": "mines"
+    },
+    "tax": {
+      "taxTriggered": true,
+      "cash": 0,
+      "announcement": [
+        ">>> EMERGENCY BROADCAST <<<",
+        "",
+        "The Ministry of Prosperity is pleased to announce",
+        "a visionary new UBI support programme.",
+        "",
+        "Effective immediately, all UBI is taxed at 100%",
+        "and a 100% wealth tax has been levied",
+        "to fund the transition to UBI.",
+        "",
+        "All tomato revenue now enters a temporary holding",
+        "account from which it is returned to the tomato.",
+        "",
+        "Thank you for your enthusiasm."
+      ]
+    },
+    "popupBlocker": {
+      "cash": 100,
+      "active": true
+    }
+  },
+  "failures": []
+}

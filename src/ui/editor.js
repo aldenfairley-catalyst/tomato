@@ -73,12 +73,23 @@ function getActiveFrame() {
   return sp.frames[Editor.activeFrameIdx];
 }
 
+function parseSpriteSize(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw.includes('x')) {
+    const [w, h] = raw.split('x').map(v => parseInt(v.trim(), 10));
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return { w, h };
+  }
+  const n = parseInt(raw, 10);
+  if (Number.isFinite(n) && n > 0) return { w: n, h: n };
+  return null;
+}
+
 function resizeEditorCanvas() {
   const frame = getActiveFrame();
   if (!frame) return;
   const h = frame.length, w = frame[0].length;
   const maxCanvas = 480;
-  const scale = Math.floor(maxCanvas / Math.max(w, h));
+  const scale = Math.max(1, Math.floor(maxCanvas / Math.max(w, h)));
   const cw = w * scale;
   const ch = h * scale;
   Editor.canvas.width = cw;
@@ -169,6 +180,30 @@ function renderEditor() {
   }
 }
 
+function drawFrameScaled(ctx, frame, boundsW, boundsH) {
+  const h = frame.length;
+  const w = frame[0].length;
+  const source = document.createElement('canvas');
+  source.width = w;
+  source.height = h;
+  const sctx = source.getContext('2d');
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = frame[y][x];
+      if (v === 0) continue;
+      sctx.fillStyle = PALETTE[v] || '#f0f';
+      sctx.fillRect(x, y, 1, 1);
+    }
+  }
+  const scale = Math.min(boundsW / w, boundsH / h);
+  const drawW = Math.max(1, Math.floor(w * scale));
+  const drawH = Math.max(1, Math.floor(h * scale));
+  const ox = Math.floor((boundsW - drawW) / 2);
+  const oy = Math.floor((boundsH - drawH) / 2);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(source, ox, oy, drawW, drawH);
+}
+
 function renderPalette() {
   const box = document.getElementById('ed-palette');
   box.innerHTML = '';
@@ -196,20 +231,13 @@ function renderFrames() {
     const entry = document.createElement('div');
     entry.className = 'frame-thumb' + (idx === Editor.activeFrameIdx ? ' active' : '');
     const thumb = document.createElement('canvas');
-    const h = frame.length, w = frame[0].length;
-    const size = 48;
-    const scale = Math.floor(size / Math.max(w, h));
-    thumb.width = w * scale;
-    thumb.height = h * scale;
+    const size = 72;
+    thumb.width = size;
+    thumb.height = size;
     const tctx = thumb.getContext('2d');
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const v = frame[y][x];
-        if (v === 0) continue;
-        tctx.fillStyle = PALETTE[v] || '#f0f';
-        tctx.fillRect(x * scale, y * scale, scale, scale);
-      }
-    }
+    tctx.fillStyle = '#111';
+    tctx.fillRect(0, 0, size, size);
+    drawFrameScaled(tctx, frame, size, size);
     entry.appendChild(thumb);
     const label = document.createElement('div');
     label.textContent = idx;
@@ -275,14 +303,14 @@ function clearFrame() {
 }
 
 function createNewSprite() {
-  const name = prompt('new sprite key (e.g. my_sprite):');
+  const nameEl = document.getElementById('ed-new-name');
+  const sizeEl = document.getElementById('ed-new-size');
+  const name = (nameEl.value || '').trim();
   if (!name) return;
   if (SPRITES[name]) { alert('already exists'); return; }
-  const sizeStr = prompt('size (w,h) e.g. 16,16 or 32,32:', '16,16');
-  if (!sizeStr) return;
-  const parts = sizeStr.split(',').map(s => parseInt(s.trim()));
-  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) { alert('bad size'); return; }
-  const w = parts[0], h = parts[1];
+  const parsed = parseSpriteSize(sizeEl.value);
+  if (!parsed) { alert('bad size'); return; }
+  const { w, h } = parsed;
   SPRITES[name] = {
     frames: [Array.from({ length: h }, () => new Array(w).fill(0))],
     speed: 500
@@ -290,6 +318,7 @@ function createNewSprite() {
   if (clearSpriteCache) clearSpriteCache();
   renderSpriteList();
   selectSprite(name);
+  nameEl.value = '';
 }
 
 function exportSprites() {
@@ -341,21 +370,10 @@ function editorAnimatePreview(ts) {
     Editor.previewFrameIdx = (Editor.previewFrameIdx + 1) % sp.frames.length;
   }
   const frame = sp.frames[Editor.previewFrameIdx];
-  const w = frame[0].length, h = frame.length;
   const cw = Editor.previewCanvas.width, ch = Editor.previewCanvas.height;
-  const scale = Math.floor(Math.min(cw / w, ch / h));
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, cw, ch);
-  const ox = Math.floor((cw - w * scale) / 2);
-  const oy = Math.floor((ch - h * scale) / 2);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const v = frame[y][x];
-      if (v === 0) continue;
-      ctx.fillStyle = PALETTE[v] || '#f0f';
-      ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
-    }
-  }
+  drawFrameScaled(ctx, frame, cw, ch);
   requestAnimationFrame(editorAnimatePreview);
 }
 
@@ -364,6 +382,8 @@ function initEditor() {
   Editor.ctx = Editor.canvas.getContext('2d');
   Editor.previewCanvas = document.getElementById('ed-preview');
   Editor.previewCtx = Editor.previewCanvas.getContext('2d');
+  Editor.ctx.imageSmoothingEnabled = false;
+  Editor.previewCtx.imageSmoothingEnabled = false;
 
   Editor.canvas.addEventListener('mousedown', e => { Editor.mouseDown = true; editorPaint(e); });
   Editor.canvas.addEventListener('mousemove', e => { if (Editor.mouseDown) editorPaint(e); });
@@ -420,5 +440,5 @@ function initEditor() {
 
 
 
-  return { Editor, openEditor, closeEditor, renderSpriteList, selectSprite, getActiveFrame, resizeEditorCanvas, editorCell, editorPaint, renderEditor, renderPalette, renderFrames, addFrame, dupFrame, delFrame, clearFrame, createNewSprite, exportSprites, updateGameStateInfo, editorAnimatePreview, initEditor };
+  return { Editor, openEditor, closeEditor, renderSpriteList, selectSprite, getActiveFrame, parseSpriteSize, resizeEditorCanvas, editorCell, editorPaint, renderEditor, renderPalette, renderFrames, addFrame, dupFrame, delFrame, clearFrame, createNewSprite, exportSprites, updateGameStateInfo, editorAnimatePreview, initEditor };
 }

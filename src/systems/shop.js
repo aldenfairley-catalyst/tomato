@@ -1,5 +1,5 @@
 export function createShopSystem(ctx) {
-  const { GameState, CFG, rand, rollShopOffer, drawSprite, scaleFor, getDimensionSnapshot, ownedShares, STOCK_ENDINGS, flashBuff, spawnPoof } = ctx;
+  const { GameState, CFG, rand, rollShopOffer, drawSprite, scaleFor, getDimensionSnapshot, ownedShares, STOCK_ENDINGS, makeEndingState, flashBuff, spawnPoof } = ctx;
 
 // -----------------------------------------------------------------------------
 // 15. SHOP SYSTEM
@@ -53,11 +53,26 @@ function drawShopPanel(ctx) {
   for (let i = 0; i < GameState.shop.slots.length; i++) {
     const box = getShopSlotBox(i);
     const slot = GameState.shop.slots[i];
+    const isShare = slot && slot.item.category === 'share';
     // card bg
-    ctx.fillStyle = slot ? '#1c1f25' : '#0c0e11';
+    ctx.fillStyle = slot ? (isShare ? '#1f1a10' : '#1c1f25') : '#0c0e11';
     ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.strokeStyle = slot ? '#555' : '#222';
-    ctx.lineWidth = 1;
+    if (isShare) {
+      // gold glow behind the card
+      ctx.save();
+      ctx.globalAlpha = 0.12 + 0.06 * Math.sin(GameState.gameTime / 300);
+      ctx.fillStyle = '#ffcc66';
+      ctx.fillRect(box.x - 2, box.y - 2, box.w + 4, box.h + 4);
+      ctx.restore();
+      // re-draw card interior over glow
+      ctx.fillStyle = '#1f1a10';
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+      ctx.strokeStyle = '#ffcc66';
+      ctx.lineWidth = 2;
+    } else {
+      ctx.strokeStyle = slot ? '#555' : '#222';
+      ctx.lineWidth = 1;
+    }
     ctx.strokeRect(box.x, box.y, box.w, box.h);
 
     if (!slot) {
@@ -117,7 +132,7 @@ function drawShopPanel(ctx) {
 
 
   // dimension panel
-  const statY = CFG.weaponBarY - 118;
+  const statY = CFG.weaponBarY + 4;
   ctx.fillStyle = '#0d1016';
   ctx.fillRect(CFG.shopX + 10, statY, CFG.shopW - 20, 108);
   ctx.strokeStyle = '#334455';
@@ -166,6 +181,45 @@ function drawPortfolioHint(ctx) {
   ctx.fillText('portfolio: ' + owned.map(k => STOCK_ENDINGS[k].name).join(', '), 528, 24);
 }
 
+function recordShopPurchaseStats(item) {
+  if (!item) return;
+  if (item.category === 'seed') {
+    GameState.stats.seedsBought++;
+    return;
+  }
+  if (item.category !== 'junk' && item.category !== 'share') {
+    GameState.stats.upgradesBought++;
+  }
+}
+
+function purchaseShopSlot(index, opts = {}) {
+  const slot = GameState.shop.slots[index];
+  if (!slot) return null;
+  if (!opts.skipCost && GameState.cash < slot.item.price) return null;
+
+  const box = getShopSlotBox(index);
+  if (!opts.skipCost) GameState.cash -= slot.item.price;
+  if (!GameState.shopPurchases) GameState.shopPurchases = {};
+  GameState.shopPurchases[slot.item.id] = true;
+  recordShopPurchaseStats(slot.item);
+  slot.item.onBuy(GameState);
+  if (slot.item.category === 'share' || slot.item.category === 'weapon') {
+    for (let i = 0; i < GameState.shop.slots.length; i++) {
+      const other = GameState.shop.slots[i];
+      if (!other) continue;
+      if (slot.item.category === 'share' && other.item.category === 'share') {
+        GameState.shop.slots[i] = null;
+      }
+      if (slot.item.category === 'weapon' && other.item.id === slot.item.id) {
+        GameState.shop.slots[i] = null;
+      }
+    }
+  }
+  GameState.shop.slots[index] = null;
+  if (opts.spawnFx !== false) spawnPoof(box.x + 40, box.y + 40);
+  return { item: slot.item, box };
+}
+
 function handleShopClick(sx, sy) {
   for (let i = 0; i < GameState.shop.slots.length; i++) {
     const box = getShopSlotBox(i);
@@ -176,16 +230,7 @@ function handleShopClick(sx, sy) {
         flashBuff('Insufficient funds');
         return true;
       }
-      GameState.cash -= slot.item.price;
-      const id = slot.item.id;
-      if (id === 'seed_basic' || id === 'seed_gmo') {
-        GameState.stats.seedsBought++;
-      } else if (!['duck', 'book', 'nft', 'mug', 'crystal', 'lanyard', 'share_xai', 'share_amazon', 'share_nvidia', 'share_claude', 'share_google'].includes(id)) {
-        GameState.stats.upgradesBought++;
-      }
-      slot.item.onBuy(GameState);
-      GameState.shop.slots[i] = null;
-      spawnPoof(box.x + 40, box.y + 40);
+      purchaseShopSlot(i);
       return true;
     }
   }
@@ -194,5 +239,5 @@ function handleShopClick(sx, sy) {
 
 
 
-  return { updateShop, getShopSlotBox, drawShopPanel, drawPortfolioHint, handleShopClick };
+  return { updateShop, getShopSlotBox, drawShopPanel, drawPortfolioHint, handleShopClick, purchaseShopSlot };
 }

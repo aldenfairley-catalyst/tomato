@@ -5,6 +5,149 @@
 const SPRITES = {};
 function S(arr) { return { frames: [arr], speed: 0 }; }
 function A(speed, ...frames) { return { frames, speed }; }
+function makeGrid(w, h, fill = 0) { return Array.from({ length: h }, () => Array(w).fill(fill)); }
+
+function createAssistantFrame(mode) {
+  const g = makeGrid(32, 32, 0);
+  const alert = mode === 'worried';
+  const soft = mode === 'apologising';
+  const excited = mode === 'purchasing';
+  const noticing = mode === 'noticing';
+  const popup = mode === 'popup';
+  const shell = alert ? 18 : 22;
+  const trim = alert ? 4 : 23;
+  const glow = alert ? 11 : 12;
+  const screen = alert ? 4 : 23;
+  const eye = alert ? 7 : 12;
+  const mouth = alert ? 11 : (soft ? 4 : 7);
+
+  for (let y = 9; y <= 23; y++) {
+    for (let x = 7; x <= 24; x++) {
+      const dx = (x - 15.5) / 8.7;
+      const dy = (y - 16) / 8.2;
+      if (dx * dx + dy * dy <= 1) g[y][x] = shell;
+    }
+  }
+  for (let y = 11; y <= 25; y++) {
+    for (let x = 9; x <= 22; x++) {
+      const dx = (x - 15.5) / 6.9;
+      const dy = (y - 18) / 7.0;
+      if (dx * dx + dy * dy <= 1) g[y][x] = 19;
+    }
+  }
+
+  for (let y = 22; y <= 28; y++) {
+    for (let x = 10; x <= 21; x++) g[y][x] = shell;
+  }
+  for (let y = 24; y <= 29; y++) {
+    for (let x = 12; x <= 19; x++) g[y][x] = 19;
+  }
+
+  for (let y = 12; y <= 18; y++) {
+    for (let x = 10; x <= 21; x++) g[y][x] = screen;
+  }
+  for (let y = 13; y <= 17; y++) {
+    for (let x = 11; x <= 20; x++) g[y][x] = 13;
+  }
+  for (let x = 10; x <= 21; x++) {
+    g[12][x] = trim;
+    g[18][x] = trim;
+  }
+  for (let y = 12; y <= 18; y++) {
+    g[y][10] = trim;
+    g[y][21] = trim;
+  }
+
+  const armY = excited ? 19 : noticing ? 17 : soft ? 20 : popup ? 18 : alert ? 15 : 20;
+  const armLift = excited ? 5 : noticing ? 4 : popup ? 3 : alert ? 6 : 2;
+  for (let i = 0; i < 5; i++) {
+    g[armY - Math.floor(i * armLift / 4)][6 - i] = trim;
+    g[armY - Math.floor(i * armLift / 4)][25 + i] = trim;
+  }
+  for (let i = 0; i < 4; i++) {
+    g[28 + i][12 - Math.floor(i / 2)] = 18;
+    g[28 + i][19 + Math.floor(i / 2)] = 18;
+  }
+
+  const eyeY = soft ? 15 : alert ? 14 : 15;
+  const leftEyeX = 13;
+  const rightEyeX = 18;
+  if (alert) {
+    g[eyeY - 1][leftEyeX - 1] = 11; g[eyeY - 1][leftEyeX] = 11;
+    g[eyeY - 1][rightEyeX] = 11; g[eyeY - 1][rightEyeX + 1] = 11;
+  }
+  if (noticing) {
+    g[eyeY][leftEyeX - 1] = glow; g[eyeY][leftEyeX] = glow; g[eyeY][leftEyeX + 1] = glow;
+    g[eyeY][rightEyeX - 1] = glow; g[eyeY][rightEyeX] = glow; g[eyeY][rightEyeX + 1] = glow;
+  } else if (popup) {
+    g[eyeY][leftEyeX - 1] = eye; g[eyeY][leftEyeX] = eye;
+    g[eyeY][rightEyeX - 1] = eye; g[eyeY][rightEyeX] = eye;
+    g[eyeY + 2][leftEyeX] = glow; g[eyeY + 2][rightEyeX] = glow;
+  } else if (soft) {
+    g[eyeY][leftEyeX - 1] = 19; g[eyeY][leftEyeX] = 19; g[eyeY][leftEyeX + 1] = 19;
+    g[eyeY][rightEyeX - 1] = 19; g[eyeY][rightEyeX] = 19; g[eyeY][rightEyeX + 1] = 19;
+    g[eyeY + 1][leftEyeX] = 4; g[eyeY + 1][rightEyeX] = 4;
+  } else if (excited) {
+    g[eyeY - 1][leftEyeX] = glow; g[eyeY][leftEyeX - 1] = glow; g[eyeY][leftEyeX] = glow; g[eyeY][leftEyeX + 1] = glow;
+    g[eyeY - 1][rightEyeX] = glow; g[eyeY][rightEyeX - 1] = glow; g[eyeY][rightEyeX] = glow; g[eyeY][rightEyeX + 1] = glow;
+  } else {
+    g[eyeY][leftEyeX - 1] = eye; g[eyeY][leftEyeX] = eye; g[eyeY][leftEyeX + 1] = eye;
+    g[eyeY][rightEyeX - 1] = eye; g[eyeY][rightEyeX] = eye; g[eyeY][rightEyeX + 1] = eye;
+  }
+
+  if (alert) {
+    g[17][14] = mouth; g[17][15] = mouth; g[17][16] = mouth; g[17][17] = mouth;
+  } else if (excited) {
+    g[17][14] = glow; g[17][15] = glow; g[18][15] = glow; g[17][16] = glow; g[17][17] = glow;
+  } else if (soft) {
+    g[17][14] = mouth; g[18][15] = mouth; g[18][16] = mouth; g[17][17] = mouth;
+  } else if (popup) {
+    g[17][14] = trim; g[17][15] = trim; g[17][16] = trim; g[18][17] = trim;
+  } else if (noticing) {
+    g[17][15] = glow; g[18][14] = glow; g[18][15] = glow; g[18][16] = glow; g[17][16] = glow;
+  } else {
+    g[18][14] = mouth; g[18][15] = mouth; g[18][16] = mouth; g[18][17] = mouth;
+  }
+
+  for (let y = 8; y <= 10; y++) g[y][15] = trim;
+  g[7][15] = trim;
+  g[6][15] = alert ? 4 : 12;
+  if (popup) {
+    g[7][17] = 12; g[7][18] = 12; g[8][17] = 12; g[8][18] = 12;
+  }
+  if (alert) {
+    g[6][12] = 4; g[6][18] = 4;
+  }
+
+  return g;
+}
+
+function createAssistantIcon() {
+  const g = makeGrid(16, 16, 0);
+  for (let y = 3; y <= 10; y++) {
+    for (let x = 3; x <= 12; x++) g[y][x] = 22;
+  }
+  for (let y = 4; y <= 9; y++) {
+    for (let x = 4; x <= 11; x++) g[y][x] = 19;
+  }
+  for (let y = 5; y <= 8; y++) {
+    for (let x = 5; x <= 10; x++) g[y][x] = 13;
+  }
+  g[6][6] = 12; g[6][7] = 12; g[6][8] = 12; g[6][9] = 12;
+  g[8][6] = 23; g[8][7] = 23; g[8][8] = 23; g[8][9] = 23;
+  for (let y = 11; y <= 13; y++) { g[y][6] = 18; g[y][9] = 18; }
+  g[2][7] = 23; g[1][7] = 12;
+  return g;
+}
+
+function createAICursor() {
+  const g = makeGrid(16, 16, 0);
+  const pts = [[1,1],[2,1],[3,1],[1,2],[2,2],[3,2],[4,2],[1,3],[2,3],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[5,4],[3,5],[4,5],[5,5],[4,6],[5,6],[5,7]];
+  pts.forEach(([x, y]) => { g[y][x] = 23; });
+  [[2,2],[3,2],[2,3],[3,3],[4,3],[3,4],[4,4],[4,5]].forEach(([x, y]) => { g[y][x] = 12; });
+  [[6,8],[7,8],[8,8],[7,7],[7,9],[10,4],[10,5],[10,6],[9,5],[11,5]].forEach(([x, y]) => { g[y][x] = 12; });
+  return g;
+}
 
 SPRITES.stem = S([
   [0,0,0,0,0,0,2,2,2,2,0,0,0,0,0,0],
@@ -498,6 +641,26 @@ SPRITES.icon_drone = S([
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ]);
 
+// Harvest drone — amber/gold body, rounder shape, claw underneath
+SPRITES.icon_harvest_drone = S([
+  [0,0,11,11,0,0,0,0,0,0,0,0,11,11,0,0],
+  [0,11,3,3,11,0,0,0,0,0,0,11,3,3,11,0],
+  [11,11,11,11,11,0,0,0,0,0,0,11,11,11,11,11],
+  [0,0,0,11,0,0,0,0,0,0,0,0,11,0,0,0],
+  [0,0,0,11,11,11,11,11,11,11,11,11,11,0,0,0],
+  [0,0,11,11,3,3,11,11,11,11,3,3,11,11,0,0],
+  [0,0,11,3,3,3,3,11,11,3,3,3,3,11,0,0],
+  [0,0,11,3,11,11,3,3,3,3,11,11,3,11,0,0],
+  [0,0,11,11,11,3,3,11,11,3,3,11,11,11,0,0],
+  [0,0,0,0,0,11,11,11,11,11,11,0,0,0,0,0],
+  [0,0,0,0,0,0,11,11,11,11,0,0,0,0,0,0],
+  [0,0,0,0,0,0,3,11,11,3,0,0,0,0,0,0],
+  [0,0,0,0,0,0,3,0,0,3,0,0,0,0,0,0],
+  [0,0,0,0,0,3,0,0,0,0,3,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+]);
+
 SPRITES.icon_manure = S([
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -752,6 +915,15 @@ SPRITES.launchpad = S((() => {
   return g;
 })());
 
+SPRITES.assistant_robot_idle = S(createAssistantFrame('idle'));
+SPRITES.assistant_robot_noticing = S(createAssistantFrame('noticing'));
+SPRITES.assistant_robot_purchasing = S(createAssistantFrame('purchasing'));
+SPRITES.assistant_robot_apologising = S(createAssistantFrame('apologising'));
+SPRITES.assistant_robot_popup = S(createAssistantFrame('popup'));
+SPRITES.assistant_robot_worried = S(createAssistantFrame('worried'));
+SPRITES.assistant_icon = S(createAssistantIcon());
+SPRITES.ai_cursor_large = S(createAICursor());
+
 // Nutrient feed bag (sits beside a slot)
 SPRITES.feedbag = S([
   [0,0,22,22,22,22,22,22,22,22,22,22,0,0,0,0],
@@ -771,6 +943,114 @@ SPRITES.feedbag = S([
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 ]);
+
+// Company share sprites (16x16) — each themed to the company
+// xAI share — dark with magenta X
+SPRITES.share_xai = S((() => {
+  const g = makeGrid(16, 16, 0);
+  // gold border
+  for (let x = 1; x < 15; x++) { g[1][x] = 3; g[14][x] = 3; }
+  for (let y = 1; y < 15; y++) { g[y][1] = 3; g[y][14] = 3; }
+  // dark fill
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) g[y][x] = 13;
+  // X mark in magenta
+  for (let i = 0; i < 8; i++) { g[4+i][4+i] = 8; g[4+i][11-i] = 8; }
+  for (let i = 0; i < 8; i++) { if (4+i+1<14) g[4+i][4+i+1] = 8; if (11-i-1>1) g[4+i][11-i-1] = 8; }
+  // gold corners
+  g[2][2] = 3; g[2][13] = 3; g[13][2] = 3; g[13][13] = 3;
+  return g;
+})());
+
+// Amazon share — orange arrow/smile
+SPRITES.share_amazon = S((() => {
+  const g = makeGrid(16, 16, 0);
+  for (let x = 1; x < 15; x++) { g[1][x] = 3; g[14][x] = 3; }
+  for (let y = 1; y < 15; y++) { g[y][1] = 3; g[y][14] = 3; }
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) g[y][x] = 13;
+  // A letter
+  g[4][7] = 11; g[4][8] = 11;
+  g[5][6] = 11; g[5][9] = 11;
+  g[6][5] = 11; g[6][10] = 11;
+  for (let x = 5; x <= 10; x++) g[7][x] = 11;
+  g[8][5] = 11; g[8][10] = 11;
+  g[9][5] = 11; g[9][10] = 11;
+  // smile arrow underneath
+  for (let x = 4; x <= 11; x++) g[11][x] = 11;
+  g[10][11] = 11; g[10][12] = 11; g[12][12] = 11;
+  g[2][2] = 3; g[2][13] = 3; g[13][2] = 3; g[13][13] = 3;
+  return g;
+})());
+
+// Nvidia share — green with angular shape
+SPRITES.share_nvidia = S((() => {
+  const g = makeGrid(16, 16, 0);
+  for (let x = 1; x < 15; x++) { g[1][x] = 3; g[14][x] = 3; }
+  for (let y = 1; y < 15; y++) { g[y][1] = 3; g[y][14] = 3; }
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) g[y][x] = 13;
+  // Eye/wedge shape in green
+  for (let y = 4; y <= 11; y++) { g[y][4] = 16; g[y][5] = 16; }
+  g[4][6] = 16; g[4][7] = 16; g[4][8] = 16; g[4][9] = 16; g[4][10] = 16; g[4][11] = 16;
+  g[5][6] = 16; g[5][7] = 16; g[5][8] = 16; g[5][9] = 16; g[5][10] = 16;
+  g[6][6] = 16; g[6][7] = 16; g[6][8] = 16; g[6][9] = 16;
+  g[7][6] = 16; g[7][7] = 16; g[7][8] = 16;
+  g[8][6] = 16; g[8][7] = 16;
+  g[9][6] = 16; g[9][7] = 16; g[9][8] = 16;
+  g[10][6] = 16; g[10][7] = 16; g[10][8] = 16; g[10][9] = 16;
+  g[11][6] = 16; g[11][7] = 16; g[11][8] = 16; g[11][9] = 16; g[11][10] = 16;
+  g[2][2] = 3; g[2][13] = 3; g[13][2] = 3; g[13][13] = 3;
+  return g;
+})());
+
+// Claude share — warm orange/cream with C
+SPRITES.share_claude = S((() => {
+  const g = makeGrid(16, 16, 0);
+  for (let x = 1; x < 15; x++) { g[1][x] = 3; g[14][x] = 3; }
+  for (let y = 1; y < 15; y++) { g[y][1] = 3; g[y][14] = 3; }
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) g[y][x] = 13;
+  // C shape in cream/orange
+  for (let x = 6; x <= 10; x++) { g[4][x] = 17; g[11][x] = 17; }
+  for (let y = 5; y <= 10; y++) { g[y][5] = 17; g[y][6] = 17; }
+  g[4][5] = 17; g[11][5] = 17;
+  // warm dots
+  g[7][9] = 11; g[8][9] = 11;
+  g[2][2] = 3; g[2][13] = 3; g[13][2] = 3; g[13][13] = 3;
+  return g;
+})());
+
+// Google share — multi-colour G
+SPRITES.share_google = S((() => {
+  const g = makeGrid(16, 16, 0);
+  for (let x = 1; x < 15; x++) { g[1][x] = 3; g[14][x] = 3; }
+  for (let y = 1; y < 15; y++) { g[y][1] = 3; g[y][14] = 3; }
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) g[y][x] = 13;
+  // G shape in multiple colours
+  for (let x = 6; x <= 11; x++) g[4][x] = 4;   // red top
+  for (let x = 6; x <= 11; x++) g[11][x] = 2;  // green bottom
+  for (let y = 5; y <= 7; y++) { g[y][5] = 11; g[y][6] = 11; } // yellow left top
+  for (let y = 8; y <= 10; y++) { g[y][5] = 1; g[y][6] = 1; }  // blue left bottom
+  // crossbar
+  for (let x = 8; x <= 11; x++) g[7][x] = 1;
+  for (let y = 7; y <= 10; y++) { g[y][10] = 1; g[y][11] = 1; }
+  g[2][2] = 3; g[2][13] = 3; g[13][2] = 3; g[13][13] = 3;
+  return g;
+})());
+
+// Golden ticket (small HUD indicator, 16x16)
+SPRITES.golden_ticket = S((() => {
+  const g = makeGrid(16, 16, 0);
+  // ticket shape
+  for (let y = 3; y <= 12; y++) for (let x = 2; x <= 13; x++) g[y][x] = 3;
+  // inner
+  for (let y = 4; y <= 11; y++) for (let x = 3; x <= 12; x++) g[y][x] = 11;
+  // notch
+  g[7][2] = 0; g[8][2] = 0; g[7][13] = 0; g[8][13] = 0;
+  // star in centre
+  g[6][7] = 3; g[6][8] = 3;
+  g[7][6] = 3; g[7][7] = 7; g[7][8] = 7; g[7][9] = 3;
+  g[8][6] = 3; g[8][7] = 7; g[8][8] = 7; g[8][9] = 3;
+  g[9][7] = 3; g[9][8] = 3;
+  return g;
+})());
 
 
 // -----------------------------------------------------------------------------

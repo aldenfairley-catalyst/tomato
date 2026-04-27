@@ -50,10 +50,14 @@ function drawIntro(ctx) {
 }
 
 function drawGameOver(ctx) {
-  const survived = GameState.gameoverReason === 'survived';
-  const shareholder = GameState.gameoverReason === 'shareholder';
+  const ending = GameState.gameoverEnding;
+  const survived = ending ? ending.category !== 'fail' : GameState.gameoverReason === 'survived';
+  const currentFrame = ending ? Math.max(1, Math.min(ending.frameCount, (ending.frameIndex || 0) + 1)) : 1;
+  const imagePath = ending ? `${ending.dir}/${currentFrame}.png` : '';
+  const frameImage = imagePath ? getEndingImage(imagePath) : null;
+  const hasImage = !!(frameImage && frameImage.complete && frameImage.naturalWidth > 0);
 
-  ctx.fillStyle = (survived || shareholder) ? '#000803' : '#0a0000';
+  ctx.fillStyle = survived ? '#000803' : '#0a0000';
   ctx.fillRect(0, 0, CFG.canvas.w, CFG.canvas.h);
 
   // CRT scanlines
@@ -63,66 +67,84 @@ function drawGameOver(ctx) {
   }
 
   ctx.textAlign = 'center';
+  const showSequence = ending && !ending.complete;
 
-  if (shareholder) {
-    const ending = GameState.gameoverEnding || getShareEnding();
-    ctx.fillStyle = '#ffdd66';
-    ctx.font = 'bold 34px "Courier New", monospace';
-    ctx.fillText(ending ? ending.title : 'YOU WON. PROBABLY.', CFG.canvas.w/2, 110);
-    ctx.fillStyle = '#ffeecc';
-    ctx.font = '16px "Courier New", monospace';
-    const lines = ending ? ending.lines : ['Your portfolio matured into a staffing event.'];
-    for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], CFG.canvas.w/2, 150 + i * 22);
-  } else if (survived) {
-    ctx.fillStyle = '#66ff66';
-    ctx.font = 'bold 48px "Courier New", monospace';
-    ctx.fillText('YOU SURVIVED', CFG.canvas.w/2, 120);
-    ctx.fillStyle = '#ccffcc';
-    ctx.font = '18px "Courier New", monospace';
-    ctx.fillText('you avoided the cobalt mines', CFG.canvas.w/2, 160);
-    ctx.fillText('this does not mean things are okay', CFG.canvas.w/2, 186);
-  } else {
-    ctx.fillStyle = '#ff2222';
-    ctx.font = 'bold 44px "Courier New", monospace';
-    ctx.fillText('REDEPLOYED TO COBALT SECTOR', CFG.canvas.w/2, 120);
-    ctx.fillStyle = '#ff9999';
-    ctx.font = 'bold 18px "Courier New", monospace';
-    ctx.fillText('"' + (GameState.gameoverPropaganda || MINES_PROPAGANDA[0]) + '"',
-                 CFG.canvas.w/2, 170);
+  if (showSequence) {
+    if (hasImage) {
+      const pad = 70;
+      const maxW = CFG.canvas.w - pad * 2;
+      const maxH = CFG.canvas.h - 170;
+      const scale = Math.min(maxW / frameImage.width, maxH / frameImage.height);
+      const w = frameImage.width * scale;
+      const h = frameImage.height * scale;
+      ctx.drawImage(frameImage, (CFG.canvas.w - w) / 2, 40, w, h);
+    } else {
+      ctx.fillStyle = survived ? '#66ff66' : '#ff2222';
+      ctx.font = 'bold 42px "Courier New", monospace';
+      ctx.fillText(ending ? ending.name : 'ENDING', CFG.canvas.w/2, 140);
+      ctx.fillStyle = survived ? '#ccffcc' : '#ff9999';
+      ctx.font = '18px "Courier New", monospace';
+      const fallback = ending && ending.category === 'fail'
+        ? '"' + (GameState.gameoverPropaganda || MINES_PROPAGANDA[0]) + '"'
+        : 'Add 1.png, 2.png, 3.png... in this ending directory.';
+      ctx.fillText(fallback, CFG.canvas.w/2, 190);
+    }
   }
 
-  // Stats
-  const s = GameState.stats;
-  const lines = [
-    'tomatoes harvested:      ' + s.tomatoesHarvested,
-    'tomatoes confiscated:    ' + s.tomatoesConfiscated,
-    'pests killed:            ' + s.pestsKilled,
-    'plants collapsed:        ' + s.plantsCollapsed,
-    'plants planted:          ' + s.plantsPlanted,
-    'weapons fired:           ' + s.weaponsFired,
-    'seeds purchased:         ' + s.seedsBought,
-    'upgrades bought:         ' + s.upgradesBought,
-    'ads closed:              ' + s.adsClosed,
-    'total earned:            ' + formatMoney(s.totalEarned),
-    'total taxed:             ' + formatMoney(s.totalTaxed),
-    'rot penalties:           ' + formatMoney(s.rotPenalties),
-    'avoided the mines:       ' + ((survived || shareholder) ? 'yes' : 'NO'),
-  ];
-  ctx.fillStyle = survived ? '#88ff88' : '#ffaaaa';
-  ctx.font = '14px "Courier New", monospace';
-  ctx.textAlign = 'left';
-  const baseX = CFG.canvas.w/2 - 200;
-  for (let i = 0; i < lines.length; i++) {
-    ctx.fillText(lines[i], baseX, 240 + i * 22);
+  // Stats (only shown after sequence is finished or if no specialized ending)
+  if (!ending || ending.complete) {
+    // Title
+    ctx.fillStyle = survived ? '#66ff66' : '#ff2222';
+    ctx.font = 'bold 42px "Courier New", monospace';
+    ctx.fillText(ending ? ending.name : 'ENDING', CFG.canvas.w/2, 140);
+
+    const s = GameState.stats;
+    const lines = [
+      'tomatoes harvested:      ' + s.tomatoesHarvested,
+      'tomatoes confiscated:    ' + s.tomatoesConfiscated,
+      'pests killed:            ' + s.pestsKilled,
+      'plants collapsed:        ' + s.plantsCollapsed,
+      'plants planted:          ' + s.plantsPlanted,
+      'weapons fired:           ' + s.weaponsFired,
+      'seeds purchased:         ' + s.seedsBought,
+      'upgrades bought:         ' + s.upgradesBought,
+      'ads closed:              ' + s.adsClosed,
+      'total earned:            ' + formatMoney(s.totalEarned),
+      'total taxed:             ' + formatMoney(s.totalTaxed),
+      'rot penalties:           ' + formatMoney(s.rotPenalties),
+      'avoided the mines:       ' + (survived ? 'yes' : 'NO'),
+    ];
+    ctx.fillStyle = survived ? '#88ff88' : '#ffaaaa';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    const baseX = CFG.canvas.w/2 - 200;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], baseX, 250 + i * 20);
+    }
   }
 
   // Retry
   ctx.textAlign = 'center';
   ctx.fillStyle = '#66ddff';
   ctx.font = 'bold 18px "Courier New", monospace';
-  ctx.fillText('[ CLICK ANYWHERE TO TRY AGAIN ]', CFG.canvas.w/2, CFG.canvas.h - 60);
+  const nextLabel = ending && !ending.complete ? '[ CLICK TO CONTINUE ]' : '[ CLICK ANYWHERE TO TRY AGAIN ]';
+  ctx.fillText(nextLabel, CFG.canvas.w/2, CFG.canvas.h - 60);
+  if (ending) {
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = '#ffdd66';
+    ctx.fillText(`${ending.name}  •  frame ${currentFrame}`, CFG.canvas.w/2, CFG.canvas.h - 88);
+  }
 
   ctx.textAlign = 'left';
+}
+
+const endingImageCache = new Map();
+function getEndingImage(path) {
+  if (endingImageCache.has(path)) return endingImageCache.get(path);
+  const img = new Image();
+  img.src = path;
+  endingImageCache.set(path, img);
+  return img;
 }
 
 

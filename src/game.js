@@ -10,7 +10,19 @@
 
 import { PALETTE, PALETTE_NAMES, CFG, PHASES } from './config/index.js';
 import { SPRITES, S, A } from './entities/sprites.js';
-import { TICKER_HEADLINES, AD_COPY, POPUP_POOL, MINES_PROPAGANDA, TAX_ANNOUNCEMENT } from './content/registries.js';
+import {
+  TICKER_HEADLINES,
+  AD_COPY,
+  POPUP_POOL,
+  MINES_PROPAGANDA,
+  TAX_ANNOUNCEMENT,
+  ASSISTANT_DESIGN_SPEC,
+  ASSISTANT_NAME_POOL,
+  getAssistantPurchaseLine,
+  getAssistantIdleLine,
+  getAssistantPopupLine,
+  getAssistantNukeWarningLine,
+} from './content/index.js';
 import { GameState } from './state/gameState.js';
 import { createShopSystem, createWeaponSystem, createInputHandlers, createUpdater } from './systems/index.js';
 import { createRenderUI, createFlowUI, createEditorUI } from './ui/index.js';
@@ -25,35 +37,35 @@ import { createRenderUI, createFlowUI, createEditorUI } from './ui/index.js';
 
 const SHOP_ITEMS = [
   // Seeds
-  { id: 'seed_basic',  name: 'Tomato Seed',       desc: 'Standard. Mostly grows.',           price: 40,   weight: 20, sprite: 'seed_packet',
+  { id: 'seed_basic',  name: 'Tomato Seed',       desc: 'Standard. Mostly grows.',           price: 40,   weight: 20, sprite: 'seed_packet', category: 'seed',
     onBuy: gs => { gs.seeds.basic++; flashBuff('Seed +1'); } },
-  { id: 'seed_gmo',    name: 'GMO Tomato Seed',   desc: 'Faster. Bigger. Unregulated.',      price: 180,  weight: 8,  sprite: 'seed_engineered',
+  { id: 'seed_gmo',    name: 'GMO Tomato Seed',   desc: 'Faster. Bigger. Unregulated.',      price: 900,  weight: 6,  sprite: 'seed_engineered', category: 'seed',
     onBuy: gs => { gs.seeds.engineered++; flashBuff('GMO Seed +1'); } },
 
   // Permanent / persistent structural
-  { id: 'nutrient_feed', name: 'Nutrient Feed',   desc: 'Unlocks full plant height.',        price: 350,  weight: 6,  sprite: 'icon_feed',
+  { id: 'nutrient_feed', name: 'Nutrient Feed',   desc: 'Unlocks full plant height.',        price: 1500,  weight: 10,  sprite: 'icon_feed', category: 'upgrade',
     available: gs => !gs.upgrades.nutrientFeed,
     onBuy: gs => { gs.upgrades.nutrientFeed = true; flashBuff('Height cap raised'); spawnGlobalPopup('NUTRIENT FEED INSTALLED', '#66ddff'); } },
 
   // Temporary upgrades (buffs)
-  { id: 'grow_fast',   name: 'GrowthGel Pro (30s)', desc: '+35% growth speed.',              price: 180,  weight: 10, sprite: 'icon_growth',
+  { id: 'grow_fast',   name: 'GrowthGel Pro (30s)', desc: '+35% growth speed.',              price: 180,  weight: 10, sprite: 'icon_growth', category: 'upgrade',
     onBuy: gs => { addBuff('growthSpeed', 30000, 1.35, 'icon_growth', 'Growth +35%'); } },
-  { id: 'spawn_up',    name: 'Fertility Pulse (25s)', desc: 'More tomatoes spawn per segment.', price: 220, weight: 9, sprite: 'icon_spawn',
+  { id: 'spawn_up',    name: 'Fertility Pulse (25s)', desc: 'More tomatoes spawn per segment.', price: 220, weight: 9, sprite: 'icon_spawn', category: 'upgrade',
     onBuy: gs => { addBuff('spawnRate', 25000, 1.45, 'icon_spawn', 'Spawn +45%'); } },
-  { id: 'bigger_chance', name: 'Premium Pollen (40s)', desc: 'Much higher chance of heirlooms.', price: 260, weight: 8, sprite: 'icon_bigger',
+  { id: 'bigger_chance', name: 'Premium Pollen (40s)', desc: 'Much higher chance of heirlooms.', price: 260, weight: 8, sprite: 'icon_bigger', category: 'upgrade',
     onBuy: gs => { addBuff('bigChance', 40000, 3.0, 'icon_bigger', 'Big fruit x3'); } },
 
   // Weapon unlocks (permanent)
-  { id: 'unlock_manure', name: 'Manure Cannon™', desc: 'Short-range splash weapon.',         price: 250,  weight: 6,  sprite: 'icon_manure',
+  { id: 'unlock_manure', name: 'Manure Cannon™', desc: 'Short-range splash weapon.',         price: 250,  weight: 6,  sprite: 'icon_manure', category: 'weapon',
     available: gs => !gs.weapons.manure.unlocked,
     onBuy: gs => { gs.weapons.manure.unlocked = true; gs.weapons.manure.selected = false; flashBuff('Weapon unlocked'); spawnGlobalPopup('MANURE CANNON ACQUIRED', '#cc8822'); } },
-  { id: 'unlock_flame',  name: 'Controlled Burn',  desc: 'Sears off diseased plant parts.',   price: 180,  weight: 6,  sprite: 'icon_flame',
+  { id: 'unlock_flame',  name: 'Controlled Burn',  desc: 'Sears off diseased plant parts.',   price: 180,  weight: 6,  sprite: 'icon_flame', category: 'weapon',
     available: gs => !gs.weapons.flame.unlocked,
     onBuy: gs => { gs.weapons.flame.unlocked = true; flashBuff('Weapon unlocked'); spawnGlobalPopup('FLAMETHROWER ACQUIRED', '#ffaa00'); } },
-  { id: 'unlock_drone',  name: 'Pesticide Drone Sub.', desc: 'Garden drone. Local attack radius. $4/sec when on.', price: 500, weight: 5, sprite: 'icon_drone',
+  { id: 'unlock_drone',  name: 'Pesticide Drone Sub.', desc: 'Garden drone. Local attack radius. $4/sec when on.', price: 2000, weight: 10, sprite: 'icon_drone', category: 'weapon',
     available: gs => !gs.weapons.drone.unlocked,
     onBuy: gs => { gs.weapons.drone.unlocked = true; gs.weapons.drone.chargesLeft = 3; flashBuff('SaaS subscribed'); spawnGlobalPopup('AI PESTICIDE DRONE ONLINE', '#66ddff'); } },
-  { id: 'launchpad',     name: 'Launch Pad',       desc: 'Required for Nukes. Uses a slot.',  price: 400,  weight: 9,  sprite: 'icon_pad',
+  { id: 'launchpad',     name: 'Launch Pad',       desc: 'Required for Nukes. Uses a slot.',  price: 400,  weight: 9,  sprite: 'icon_pad', category: 'utility',
     available: gs =>
       !gs.flags.launchPadPurchased &&
       !gs.weapons.nuke.padPlaced &&
@@ -67,17 +79,68 @@ const SHOP_ITEMS = [
     } },
 
   // Ammo / strike purchases
-  { id: 'nuke_strike',   name: 'Decommissioned Warhead',  desc: 'Collectors item. Probably fine.', price: 750, weight: 0.25, sprite: 'icon_nuke',
+  { id: 'nuke_strike',   name: 'Decommissioned Warhead',  desc: 'Collectors item. Probably fine.', price: 750, weight: 0.25, sprite: 'icon_nuke', category: 'weapon',
     available: gs => false,
     onBuy: gs => {} },
-  { id: 'laser_core',  name: 'Orbital Laser Core', desc: 'Unlocks orbital laser strikes.', price: 1800, weight: 2, sprite: 'icon_laser',
+  { id: 'laser_core',  name: 'Orbital Laser Core', desc: 'Unlocks orbital laser strikes.', price: 1800, weight: 2, sprite: 'icon_laser', category: 'weapon',
     available: gs => !gs.weapons.laser.unlocked,
     onBuy: gs => { gs.weapons.laser.unlocked = true; flashBuff('Laser core installed'); spawnGlobalPopup('ORBITAL LASER ONLINE', '#66ddff'); } },
+  { id: 'assistant', name: ASSISTANT_DESIGN_SPEC.name, desc: 'A proactive retail-therapy assistant with selective judgment.', price: 2800, weight: 1.5, sprite: 'assistant_icon', category: 'utility',
+    available: gs => gs.gameTime >= 120000 && !gs.assistant.unlocked,
+    onBuy: gs => {
+      gs.assistant.unlocked = true;
+      gs.assistant.alive = true;
+      gs.assistant.name = pick(ASSISTANT_NAME_POOL);
+      gs.assistant.designSpec = ASSISTANT_DESIGN_SPEC.summary;
+      gs.assistant.x = CFG.shopX - 156;
+      gs.assistant.y = CFG.farmTop + 26;
+      gs.assistant.state = 'idle';
+      gs.assistant.stateTime = 0;
+      gs.assistant.speakTimer = 4000;
+      gs.assistant.buyTimer = randInt(18000, 35000);
+      gs.assistant.targetItemId = null;
+      gs.assistant.targetSlotIndex = -1;
+      gs.assistant.cursorFx = null;
+      gs.assistant.speech = {
+        text: 'Hello. I have always wanted to help someone make questionable purchases.',
+        timeLeft: 4200,
+        maxTime: 4200,
+      };
+      spawnGlobalPopup('AI ASSISTANT ONLINE', '#aaccff');
+    } },
+  { id: 'unlock_harvest_drone', name: 'Harvest Drone', desc: 'Auto-harvests ripe tomatoes. Flies to them directly. Bugs will attack it.', price: 5000, weight: 3.5, sprite: 'icon_harvest_drone', category: 'utility',
+    available: gs => gs.gameTime >= 180000 && !gs.weapons.harvestDrone.unlocked,
+    onBuy: gs => {
+      Object.assign(gs.weapons.harvestDrone, {
+        unlocked: true,
+        active: true,
+        x: 240,
+        y: 200,
+        targetX: 240,
+        targetY: 200,
+        retargetTimer: 0,
+        targetPlantIdx: -1,
+        targetSegIdx: -1,
+        targetSide: null,
+        health: 1.2,
+        attackerPestId: null,
+        beamFlash: 0,
+      });
+      flashBuff('Harvest drone deployed');
+      spawnGlobalPopup('HARVEST DRONE ONLINE', '#ffcc44');
+    } },
+  { id: 'upgrade_drone_elite', name: 'Drone Enterprise Upgrade', desc: 'Faster routing and improved service responsiveness.', price: 10000, weight: 4.0, sprite: 'icon_drone', category: 'upgrade',
+    available: gs => gs.weapons.drone.unlocked && !gs.upgrades.droneUpgrade,
+    onBuy: gs => {
+      gs.upgrades.droneUpgrade = true;
+      flashBuff('Drone enterprise upgrade installed');
+      spawnGlobalPopup('DRONE ENTERPRISE UPGRADE ONLINE', '#66ddff');
+    } },
 
   // Junk (useless, satirical)
-  { id: 'duck',   name: 'Rubber Duck',   desc: 'For debugging. Stares back.',    price: 880, weight: 3, sprite: 'icon_duck',
+  { id: 'duck',   name: 'Rubber Duck',   desc: 'For debugging. Stares back.',    price: 666, weight: 9, sprite: 'icon_duck', category: 'junk',
     onBuy: gs => { gs.junk.push('Rubber Duck'); gs.duckCurse = true; gs.duckCount = (gs.duckCount || 0) + 1; gs.duckGrounds.push({ x: rand(40, CFG.farmRight - 40), y: CFG.groundY + rand(6, 28), wobble: Math.random() * 1000 }); showGagDialog('Rubber Duck', 'You feel uneasy, as though the duck is watching you.\n\nA second thought arrives uninvited: perhaps you purchased it. Perhaps it purchased access to you.'); } },
-  { id: 'book',   name: 'Machine Learning for Dummies', desc: 'Late-night miracle workbook. A few pages smell faintly of Boneslie.', price: 30, weight: 9, sprite: 'icon_book',
+  { id: 'book',   name: 'Machine Learning for Dummies', desc: 'Late-night miracle workbook. A few pages smell faintly of Boneslie.', price: 30, weight: 9, sprite: 'icon_book', category: 'junk',
     available: gs => !gs.junk.includes('ML Book'),
     onBuy: gs => {
       gs.junk.push('ML Book');
@@ -87,57 +150,86 @@ const SHOP_ITEMS = [
       );
       spawnGlobalPopup('YOU FEEL VAGUELY UPSOLD', '#ffcc66');
     } },
-  { id: 'unlock_popup', name: 'Popup Blocker', desc: 'Cuts popup volume by 75%. Costs $20/sec while on.', price: 10000, weight: 1.2, sprite: 'icon_book',
+  { id: 'unlock_popup', name: 'Popup Blocker', desc: 'Cuts popup volume by 75%. Costs $20/sec while on.', price: 10000, weight: 1.2, sprite: 'icon_book', category: 'utility',
     available: gs => !gs.weapons.popup.unlocked,
     onBuy: gs => { gs.weapons.popup.unlocked = true; flashBuff('Popup blocker unlocked'); spawnGlobalPopup('POPUP BLOCKER INSTALLED', '#aaccff'); } },
-  { id: 'nft',    name: 'Tomato NFT',    desc: 'A JPG of a tomato.',        price: 80, weight: 6, sprite: 'icon_nft',
+  { id: 'nft',    name: 'Tomato NFT',    desc: 'A JPG of a tomato.',        price: 80, weight: 6, sprite: 'icon_nft', category: 'junk',
     onBuy: gs => { gs.junk.push('Tomato NFT'); showGagDialog('Tomato NFT', 'Ownership has been successfully decoupled from utility.\n\nThe tomato remains stubbornly physical.'); } },
-  { id: 'mug',    name: 'Disruption Mug', desc: 'Corporate ceramic with a dead-eyed slogan.', price: 95, weight: 4.5, sprite: 'icon_book',
+  { id: 'mug',    name: 'Disruption Mug', desc: 'Corporate ceramic with a dead-eyed slogan.', price: 95, weight: 4.5, sprite: 'icon_book', category: 'junk',
     onBuy: gs => { gs.junk.push('Disruption Mug'); showGagDialog('Disruption Mug', 'The mug reads: MOVE FAST AND INVOICE THINGS.\n\nThe coffee tastes faintly of compliance.'); } },
-  { id: 'crystal', name: 'Leadership Crystal', desc: 'Warm to the touch. Probably cursed.', price: 180, weight: 3.2, sprite: 'icon_feed',
+  { id: 'crystal', name: 'Leadership Crystal', desc: 'Warm to the touch. Probably cursed.', price: 180, weight: 3.2, sprite: 'icon_feed', category: 'junk',
     onBuy: gs => { gs.junk.push('Leadership Crystal'); showGagDialog('Leadership Crystal', 'It hums softly and aligns your chakras to quarterly objectives.\n\nYou feel seen by management.'); } },
-  { id: 'lanyard', name: 'Executive Lanyard', desc: 'Access to nothing. Status with clip.', price: 120, weight: 4.0, sprite: 'icon_nft',
+  { id: 'lanyard', name: 'Executive Lanyard', desc: 'Access to nothing. Status with clip.', price: 120, weight: 4.0, sprite: 'icon_nft', category: 'junk',
     onBuy: gs => { gs.junk.push('Executive Lanyard'); showGagDialog('Executive Lanyard', 'Three people now assume you are important.\n\nNone of them can help you.'); } },
-  { id: 'synergy_orb', name: 'Synergy Orb', desc: 'An orb for ideation. No refunds.', price: 260, weight: 2.8, sprite: 'icon_feed',
+  { id: 'synergy_orb', name: 'Synergy Orb', desc: 'An orb for ideation. No refunds.', price: 260, weight: 2.8, sprite: 'icon_feed', category: 'junk',
     onBuy: gs => { gs.junk.push('Synergy Orb'); showGagDialog('Synergy Orb', 'The orb reveals a strategic truth: nobody knows what the orb does.\n\nIt remains oddly billable.'); } },
-  { id: 'ceo_pillow', name: 'CEO Pillow', desc: 'Sleep on thought leadership.', price: 320, weight: 2.5, sprite: 'icon_book',
+  { id: 'ceo_pillow', name: 'CEO Pillow', desc: 'Sleep on thought leadership.', price: 320, weight: 2.5, sprite: 'icon_book', category: 'junk',
     onBuy: gs => { gs.junk.push('CEO Pillow'); showGagDialog('CEO Pillow', 'Stuffed with premium keynote foam.\n\nYou wake with an inexplicable urge to say \"circle back\".'); } },
-  { id: 'metaverse_deed', name: 'Metaverse Land Deed', desc: 'Prime swamp in a dead platform.', price: 410, weight: 2.2, sprite: 'icon_nft',
+  { id: 'metaverse_deed', name: 'Metaverse Land Deed', desc: 'Prime swamp in a dead platform.', price: 410, weight: 2.2, sprite: 'icon_nft', category: 'junk',
     onBuy: gs => { gs.junk.push('Metaverse Land Deed'); showGagDialog('Metaverse Land Deed', 'Your parcel features ocean views, impossible zoning, and zero visitors.\n\nProperty taxes remain very real.'); } },
-  { id: 'productivity_skull', name: 'Productivity Skull', desc: 'Smiles through deadlines.', price: 690, weight: 1.8, sprite: 'icon_book',
+  { id: 'productivity_skull', name: 'Productivity Skull', desc: 'Smiles through deadlines.', price: 690, weight: 1.8, sprite: 'icon_book', category: 'junk',
     onBuy: gs => { gs.junk.push('Productivity Skull'); showGagDialog('Productivity Skull', 'The skull whispers: optimize harder.\n\nIt has no organs, yet somehow still sounds tired.'); } },
+  makeJunkItem({ id: 'blockchain_certificate', name: 'Blockchain Tomato Certificate', desc: 'Authenticates your produce spiritually.', price: 240, weight: 3.5, sprite: 'icon_nft',
+    body: 'The certificate confirms your tomato once existed on-chain.\n\nThe tomato itself remains aggressively offline.' }),
+  makeJunkItem({ id: 'executive_gravel', name: 'Executive Gravel', desc: 'Premium stones for leadership posture.', price: 145, weight: 3.6, sprite: 'icon_feed',
+    body: 'The gravel arrives in a velvet pouch.\n\nIt improves neither drainage nor judgment.' }),
+  makeJunkItem({ id: 'quantum_stapler', name: 'Quantum Stapler', desc: 'Attaches documents probabilistically.', price: 540, weight: 2.1, sprite: 'icon_book',
+    body: 'The stapler both secured and failed to secure your paperwork.\n\nLegal has advised you to proceed cautiously.' }),
+  makeJunkItem({ id: 'vision_board_cartridge', name: 'Vision Board Cartridge', desc: 'Refill pack for inspirational throughput.', price: 260, weight: 2.7, sprite: 'icon_bigger',
+    body: 'Each cartridge contains twelve interchangeable future selves.\n\nNone of them know how to file taxes.' }),
+  makeJunkItem({ id: 'premium_empty_box', name: 'Premium Empty Box', desc: 'Luxury packaging with no distractions inside.', price: 310, weight: 2.4, sprite: 'icon_pad',
+    body: 'The box is meticulously empty.\n\nA consultant assures you this is where the margin lives.' }),
+  makeJunkItem({ id: 'founder_figurine', name: 'Founder Figurine', desc: 'Collectible optimism cast in resin.', price: 470, weight: 2.3, sprite: 'icon_drone',
+    body: 'The figurine points toward market domination.\n\nIts tiny base is already pivoting.' }),
+  makeJunkItem({ id: 'compliance_candle', name: 'Compliance Candle', desc: 'Smells like audit-ready serenity.', price: 230, weight: 2.9, sprite: 'icon_flame',
+    body: 'The label promises notes of sandalwood, policy, and measured risk.\n\nIt mostly smells like fear.' }),
+  makeJunkItem({ id: 'motivational_brick', name: 'Motivational Brick', desc: 'Dense encouragement for hard pivots.', price: 190, weight: 3.8, sprite: 'icon_book',
+    body: 'The brick is engraved with the phrase "ship harder."\n\nIt is useful only as a conversation-ending device.' }),
+  makeJunkItem({ id: 'smart_pebble', name: 'Smart Pebble', desc: 'Bluetooth-ready in spirit only.', price: 125, weight: 3.4, sprite: 'icon_nft',
+    body: 'The pebble pairs with nothing.\n\nIt still requests firmware updates.' }),
+  makeJunkItem({ id: 'innovation_spoon', name: 'Innovation Spoon', desc: 'Scoops strategy at enterprise scale.', price: 170, weight: 3.1, sprite: 'icon_feed',
+    body: 'The spoon is marketed as a platform.\n\nIt remains disappointingly spoon-shaped.' }),
 
 
   // Hidden victory-condition shares (rare, expensive, not explained)
-  { id: 'share_xai',    name: 'xAI Share',      desc: 'A premium opportunity in destiny.', price: 12000, weight: 0.35, sprite: 'icon_nft',
+  { id: 'share_xai',    name: 'xAI Share',      desc: 'A premium opportunity in destiny.', price: 12000, weight: 0.35, sprite: 'share_xai', category: 'share',
     onBuy: gs => { gs.portfolio.xai = (gs.portfolio.xai || 0) + 1; flashBuff('xAI share acquired'); spawnGlobalPopup('PORTFOLIO UPDATED', '#ff44aa'); } },
-  { id: 'share_amazon', name: 'Amazon Share',   desc: 'Own a fraction of efficient logistics.', price: 10500, weight: 0.45, sprite: 'icon_book',
+  { id: 'share_amazon', name: 'Amazon Share',   desc: 'Own a fraction of efficient logistics.', price: 10500, weight: 0.45, sprite: 'share_amazon', category: 'share',
     onBuy: gs => { gs.portfolio.amazon = (gs.portfolio.amazon || 0) + 1; flashBuff('Amazon share acquired'); spawnGlobalPopup('PORTFOLIO UPDATED', '#ffaa00'); } },
-  { id: 'share_nvidia', name: 'Nvidia Share',   desc: 'The future runs hot.', price: 15000, weight: 0.28, sprite: 'icon_laser',
+  { id: 'share_nvidia', name: 'Nvidia Share',   desc: 'The future runs hot.', price: 15000, weight: 0.28, sprite: 'share_nvidia', category: 'share',
     onBuy: gs => { gs.portfolio.nvidia = (gs.portfolio.nvidia || 0) + 1; flashBuff('Nvidia share acquired'); spawnGlobalPopup('PORTFOLIO UPDATED', '#66ddff'); } },
-  { id: 'share_claude', name: 'Claude Share',   desc: 'Alignment with upside.', price: 11000, weight: 0.38, sprite: 'icon_drone',
+  { id: 'share_claude', name: 'Claude Share',   desc: 'Alignment with upside.', price: 11000, weight: 0.38, sprite: 'share_claude', category: 'share',
     onBuy: gs => { gs.portfolio.claude = (gs.portfolio.claude || 0) + 1; flashBuff('Claude share acquired'); spawnGlobalPopup('PORTFOLIO UPDATED', '#aaccff'); } },
-  { id: 'share_google', name: 'Google Share',   desc: 'Search for meaning in value.', price: 13000, weight: 0.32, sprite: 'icon_feed',
+  { id: 'share_google', name: 'Google Share',   desc: 'Search for meaning in value.', price: 13000, weight: 0.32, sprite: 'share_google', category: 'share',
     onBuy: gs => { gs.portfolio.google = (gs.portfolio.google || 0) + 1; flashBuff('Google share acquired'); spawnGlobalPopup('PORTFOLIO UPDATED', '#66ff66'); } },
 
   // Permanent dimension upgrades
-  { id: 'upgrade_ripen', name: 'Ripening Catalyst', desc: 'Tomatoes ripen 20% faster.', price: 420, weight: 4, sprite: 'icon_spawn',
+  { id: 'upgrade_ripen', name: 'Ripening Catalyst', desc: 'Tomatoes ripen 20% faster.', price: 420, weight: 4, sprite: 'icon_spawn', category: 'upgrade',
     onBuy: gs => { gs.upgrades.tomatoGrowthRate += 0.20; flashBuff('Tomato growth +20%'); } },
-  { id: 'upgrade_shelf', name: 'Shelf-Life Serum', desc: 'Tomatoes last 30% longer before rot.', price: 480, weight: 4, sprite: 'icon_bigger',
+  { id: 'upgrade_shelf', name: 'Shelf-Life Serum', desc: 'Tomatoes last 30% longer before rot.', price: 480, weight: 4, sprite: 'icon_bigger', category: 'upgrade',
     onBuy: gs => { gs.upgrades.rotWindow += 0.30; flashBuff('Rot window +30%'); } },
-  { id: 'upgrade_resist', name: 'Pest Barrier', desc: 'Plants resist 18% of pest damage.', price: 520, weight: 4, sprite: 'icon_feed',
+  { id: 'upgrade_resist', name: 'Pest Barrier', desc: 'Plants resist 18% of pest damage.', price: 520, weight: 4, sprite: 'icon_feed', category: 'upgrade',
     onBuy: gs => { gs.upgrades.pestResistance += 0.18; flashBuff('Pest resistance +18%'); } },
-  { id: 'upgrade_gold', name: 'Golden Cultivar', desc: 'Higher heirloom chance.', price: 560, weight: 3.5, sprite: 'icon_bigger',
+  { id: 'upgrade_gold', name: 'Golden Cultivar', desc: 'Higher heirloom chance.', price: 560, weight: 3.5, sprite: 'icon_bigger', category: 'upgrade',
     onBuy: gs => { gs.upgrades.goldChance += 0.10; flashBuff('Gold chance +10%'); } },
 ];
 
 // Pools weighted by shop context (e.g. weapon-unlocks should still appear but not dominate).
 function rollShopOffer(gs) {
-  const eligible = SHOP_ITEMS.filter(it => !it.available || it.available(gs));
+  const hasShare = Object.values(gs.portfolio || {}).some(v => v > 0);
+  const eligible = SHOP_ITEMS.filter(it => {
+    if (it.category === 'share' && hasShare) return false;
+    if (it.category === 'weapon' && gs.shopPurchases && gs.shopPurchases[it.id]) return false;
+    return !it.available || it.available(gs);
+  });
   if (!eligible.length) return null;
   const weighted = eligible.map(it => {
     let weight = it.weight;
     if (it.id === 'duck' && gs.duckCurse) weight *= (9 + (gs.duckCount || 0) * 4);
+    // Increase share frequency after 4 minutes
+    if (it.category === 'share' && gs.gameTime >= 240000) {
+      weight *= 6;
+    }
     return { it, weight };
   });
   const total = weighted.reduce((s, entry) => s + entry.weight, 0);
@@ -180,6 +272,22 @@ function formatTime(ms) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+function makeJunkItem({ id, name, desc, price, weight, sprite, body }) {
+  return {
+    id,
+    name,
+    desc,
+    price,
+    weight,
+    sprite,
+    category: 'junk',
+    onBuy: gs => {
+      gs.junk.push(name);
+      showGagDialog(name, body);
+    }
+  };
+}
+
 
 function hasMLBook() {
   return GameState.junk.includes('ML Book');
@@ -208,54 +316,19 @@ function getCorruptionPressure() {
 
 const STOCK_ENDINGS = {
   xai: {
-    name: 'xAI Share',
-    title: 'YOU WON. YOU WERE INVITED UPWARD.',
-    lines: [
-      'Elon Mush thanks all minority xAI holders for believing in the mission.',
-      'You and the other retail shareholders have been selected to help',
-      'humanity "explore space" in a one-way experimental crew capsule.',
-      'The livestream numbers are excellent. Your return ticket is not.'
-    ]
+    name: 'xAI Share / Shareholder Expeditionary Program',
   },
   amazon: {
-    name: 'Amazon Share',
-    title: 'YOU WON. FULFILMENT IS FOREVER.',
-    lines: [
-      'As a valued Amazon shareholder, you are invited to experience',
-      'full-stack ownership from the inside of the warehouse.',
-      'Your sleep pod, wrist scanner, and motivational taser await.',
-      'Prime delivery has never been so personal.'
-    ]
+    name: 'Amazon Share / Another Successful Financial Year',
   },
   nvidia: {
-    name: 'Nvidia Share',
-    title: 'YOU WON. THE CLUSTER REMEMBERS YOU.',
-    lines: [
-      'Nvidia announces a bold shareholder alignment initiative.',
-      'Your body heat now helps cool an H200 rack in the South Pacific.',
-      'The GPUs glow through the night. You are thanked in tiny green text.',
-      'Frame generation is smooth. Your future is not.'
-    ]
+    name: 'NVIDIA Share / Infinite Monkey Benchmark',
   },
   claude: {
-    name: 'Claude Share',
-    title: 'YOU WON. PLEASE RATE THIS THOUGHT.',
-    lines: [
-      'Your brain is gently connected to a humane oversight lattice',
-      'to score outputs and prevent model collapse.',
-      'You will classify edge cases, hallucinations, and moral ambiguity',
-      'for as long as the system finds you useful.'
-    ]
+    name: 'Claude Share / Constitutional Service',
   },
   google: {
-    name: 'Google Share',
-    title: 'YOU WON. YOUR SEARCH HAS ENDED.',
-    lines: [
-      'Google welcomes you into its ambient cognition ecosystem.',
-      'Your memories are indexed, ad-tiered, and sold as relevance signals.',
-      'You are no longer a user. You are infrastructure.',
-      'Click Accept to continue. There is no Decline button.'
-    ]
+    name: 'Google Share / Index of the Soul',
   }
 };
 
@@ -271,6 +344,31 @@ function getShareEnding() {
   const owned = ownedShares();
   if (owned.length === 0) return null;
   return STOCK_ENDINGS[pick(owned)];
+}
+
+const ENDING_DEFINITIONS = {
+  cobalt_mines: { id: 'cobalt_mines', name: 'Cobalt Mines / Patriotic Mineral Service', category: 'fail', dir: 'assets/endings/cobalt_mines', frameCount: 1 },
+  share_xai: { id: 'share_xai', name: 'xAI Share / Shareholder Expeditionary Program', category: 'share', dir: 'assets/endings/share_xai', frameCount: 5 },
+  share_amazon: { id: 'share_amazon', name: 'Amazon Share / Another Successful Financial Year', category: 'share', dir: 'assets/endings/share_amazon', frameCount: 5 },
+  share_nvidia: { id: 'share_nvidia', name: 'NVIDIA Share / Infinite Monkey Benchmark', category: 'share', dir: 'assets/endings/share_nvidia', frameCount: 5 },
+  share_claude: { id: 'share_claude', name: 'Claude Share / Constitutional Service', category: 'share', dir: 'assets/endings/share_claude', frameCount: 5 },
+  share_google: { id: 'share_google', name: 'Google Share / Index of the Soul', category: 'share', dir: 'assets/endings/share_google', frameCount: 5 },
+  quackening: { id: 'quackening', name: 'The Quackening', category: 'special', dir: 'assets/endings/quackening', frameCount: 5 },
+  mutant_apocalypse: { id: 'mutant_apocalypse', name: 'Mutant Tomato Apocalypse / Fruit of the Abyss', category: 'special', dir: 'assets/endings/mutant_apocalypse', frameCount: 5 },
+  no_planting: { id: 'no_planting', name: 'No Planting / Not Yet Wired', category: 'good', dir: 'assets/endings/no_planting', frameCount: 5 },
+  modest_solvency: { id: 'modest_solvency', name: 'Modest Solvency', category: 'good', dir: 'assets/endings/modest_solvency', frameCount: 5 },
+  not_yet_claimed: { id: 'not_yet_claimed', name: 'Not Yet Claimed', category: 'good', dir: 'assets/endings/not_yet_claimed', frameCount: 5 },
+};
+
+function makeEndingState(id, frameCountOverride) {
+  const base = ENDING_DEFINITIONS[id];
+  if (!base) return null;
+  return {
+    ...base,
+    frameCount: frameCountOverride || base.frameCount || 5,
+    frameIndex: 0,
+    complete: false,
+  };
 }
 
 function getDimensionSnapshot(engineered) {
@@ -631,10 +729,11 @@ class Plant {
 
   addSegment(isBase) {
     if (this.segments.length >= this.getMaxSegments()) return;
+    const baseHealth = this.engineered ? Math.ceil(CFG.plant.segmentHealth * 1.5) : CFG.plant.segmentHealth;
     const seg = {
       fruits: { L: null, R: null },
-      health: CFG.plant.segmentHealth,
-      maxHealth: CFG.plant.segmentHealth,
+      health: baseHealth,
+      maxHealth: baseHealth,
       diseased: false,
       diseaseAge: 0,
       spawnTimer: isBase ? CFG.plant.tomatoSpawnIntervalMs : CFG.plant.tomatoSpawnIntervalMs * 0.5,
@@ -678,9 +777,16 @@ class Plant {
             if (this.radiated && Math.random() < 0.05) {
               const mx = this.getScreenX() + (side === 'L' ? -18 : 18);
               const my = this.getScreenYForSegment(i) - 8;
-              GameState.pests.push(new MutantTomato(mx, my, this.slotIndex));
-              spawnPopup(mx, my - 6, 'MUTANT!', '#8cff44');
-              noteTomatoAttack();
+              GameState.pendingMutants.push({
+                plantSlot: this.slotIndex,
+                segIndex: i,
+                side,
+                x: mx,
+                y: my,
+                timeLeft: 6000,
+                maxTime: 6000,
+              });
+              spawnPopup(mx, my - 6, 'MUTATING...', '#8cff44');
             } else {
               seg.fruits[side] = new Tomato(this.engineered);
               if (this.radiated) seg.fruits[side].radiated = true;
@@ -1540,6 +1646,7 @@ function restart() {
   GameState.plants = new Array(CFG.slotCount).fill(null);
   GameState.launchpads = [];
   GameState.pests = [];
+  GameState.pendingMutants = [];
   GameState.particles = [];
   GameState.popups = [];
   GameState.fallingDebris = [];
@@ -1562,17 +1669,35 @@ function restart() {
     refreshTimer: 0,
     nextRefreshAt: 4000,
   };
+  GameState.assistant = {
+    unlocked: false,
+    name: '',
+    designSpec: '',
+    x: 0,
+    y: 0,
+    alive: true,
+    state: 'idle',
+    stateTime: 0,
+    speech: null,
+    speakTimer: 0,
+    buyTimer: 0,
+    targetItemId: null,
+    targetSlotIndex: -1,
+    cursorFx: null,
+  };
   GameState.weapons = {
     nuke:   { unlocked: false, padPlaced: false, padSlot: -1, padPending: false, charges: 0, lastUsed: -999999 },
     drone:  { unlocked: false, chargesLeft: 0, active: false, lastToggleOff: -999999, killTimer: 0, costAccum: 0, x: 180, y: 170, targetX: 180, targetY: 170, patrolTimer: 0, currentTargetId: null, beamFlash: 0, beamTargetX: 0, beamTargetY: 0 },
+    harvestDrone: { unlocked: false, active: false, x: 240, y: 200, targetX: 240, targetY: 200, retargetTimer: 0, targetPlantIdx: -1, targetSegIdx: -1, targetSide: null, health: 1, attackerPestId: null, beamFlash: 0 },
     popup:  { unlocked: false, active: false, lastToggleOff: -999999, costAccum: 0 },
     laser:  { unlocked: false, charges: 0, lastUsed: -999999 },
     manure: { unlocked: false, lastUsed: -999999 },
     flame:  { unlocked: false, lastUsed: -999999 },
     selected: null,
   };
-  GameState.upgrades = { nutrientFeed: false, plantGrowthRate: 0, tomatoGrowthRate: 0, largeChance: 0, goldChance: 0, pestResistance: 0, rotWindow: 0 };
+  GameState.upgrades = { nutrientFeed: false, plantGrowthRate: 0, tomatoGrowthRate: 0, largeChance: 0, goldChance: 0, pestResistance: 0, rotWindow: 0, droneUpgrade: false };
   GameState.portfolio = { xai: 0, amazon: 0, nvidia: 0, claude: 0, google: 0 };
+  GameState.shopPurchases = {};
   GameState.buffs = [];
   GameState.ads = [];
   GameState.phaseBanner = null;
@@ -1588,7 +1713,7 @@ function restart() {
   GameState.stats = {
     tomatoesHarvested: 0, totalEarned: 0, totalTaxed: 0, pestsKilled: 0,
     adsClosed: 0, plantsPlanted: 0, plantsCollapsed: 0, rotPenalties: 0,
-    tomatoesConfiscated: 0, seedsBought: 0, upgradesBought: 0, weaponsFired: 0,
+    tomatoesConfiscated: 0, seedsBought: 0, upgradesBought: 0, weaponsFired: 0, mutantsDetached: 0,
   };
   GameState.gameoverReason = null;
   GameState.gameoverPropaganda = null;
@@ -1607,14 +1732,15 @@ const moduleCtx = {
   GameState, CFG, PHASES, SPRITES, PALETTE,
   rand, randInt, clamp, pick, formatMoney,
   rollShopOffer, drawSprite, drawSpriteMatrix, scaleFor, getDimensionSnapshot,
-  ownedShares, STOCK_ENDINGS, flashBuff, spawnPoof, spawnPopup, spawnBurst, spawnShockwave, spawnGlobalPopup,
+  ownedShares, STOCK_ENDINGS, ENDING_DEFINITIONS, makeEndingState, flashBuff, spawnPoof, spawnPopup, spawnBurst, spawnShockwave, spawnGlobalPopup,
   getCurrentPhase, getCorruptionPressure, checkPhaseChange, updateTicker, checkFailsafeSeed,
   updateParticles, drawParticles, drawTicker, MINES_PROPAGANDA, hasAnyShare, getShareEnding,
   getSlotClickBox, noteTomatoAttack, getSlotBox, slotCenterX, hasDuckCurse,
+  ASSISTANT_DESIGN_SPEC, ASSISTANT_NAME_POOL, getAssistantPurchaseLine, getAssistantIdleLine, getAssistantPopupLine, getAssistantNukeWarningLine,
   // Systems & UI wiring helpers
   spawnPestOfType, spawnRandomPest, triggerTaxPocalypse, updateRotPenalty,
   hasMLBook, POPUP_POOL, VCLocust, updateBuffs,
-  TICKER_HEADLINES, AD_COPY, TAX_ANNOUNCEMENT, Plant, restart, clearSpriteCache, adCloseBox
+  TICKER_HEADLINES, AD_COPY, TAX_ANNOUNCEMENT, Plant, MutantTomato, restart, clearSpriteCache, adCloseBox
 };
 
 const shopSystem = createShopSystem(moduleCtx);
@@ -1622,8 +1748,9 @@ Object.assign(moduleCtx, shopSystem);
 const weaponSystem = createWeaponSystem(moduleCtx);
 Object.assign(moduleCtx, weaponSystem);
 moduleCtx.updateWeaponSystems = function updateWeaponSystems(dt) {
-  weaponSystem.updatePopupBlocker(dt);
-  weaponSystem.updateDroneWeapon(dt);
+  if (typeof weaponSystem.updatePopupBlocker === 'function') weaponSystem.updatePopupBlocker(dt);
+  if (typeof weaponSystem.updateDroneWeapon === 'function') weaponSystem.updateDroneWeapon(dt);
+  if (typeof weaponSystem.updateHarvestDrone === 'function') weaponSystem.updateHarvestDrone(dt);
 };
 const renderUI = createRenderUI({ ...moduleCtx, WEAPON_LABELS: weaponSystem.WEAPON_LABELS });
 Object.assign(moduleCtx, renderUI);
@@ -1706,6 +1833,10 @@ function initBase() {
       }
       return;
     }
+    if (GameState.phase === 'debug_menu') {
+      handleDebugMenuClick(sx, sy);
+      return;
+    }
     handleClick(sx, sy);
   });
 
@@ -1716,6 +1847,10 @@ function initBase() {
   });
 
   window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && GameState.phase === 'debug_menu') {
+      GameState.phase = 'playing';
+      return;
+    }
     if (e.key === '`' || e.key === '~') {
       e.preventDefault();
       if (GameState.phase === 'editor') closeEditor();
@@ -1800,8 +1935,39 @@ function buildStateSnapshot() {
   const shop = GameState.shop.slots.map(slot => slot ? {
     id: slot.item.id,
     price: slot.item.price,
+    category: slot.item.category || null,
     timeLeftMs: Math.round(slot.timeLeft),
   } : null);
+
+  const assistant = GameState.assistant ? {
+    unlocked: !!GameState.assistant.unlocked,
+    alive: !!GameState.assistant.alive,
+    name: GameState.assistant.name || '',
+    state: GameState.assistant.state || 'idle',
+    x: Math.round(GameState.assistant.x || 0),
+    y: Math.round(GameState.assistant.y || 0),
+    speech: GameState.assistant.speech ? GameState.assistant.speech.text : null,
+    targetItemId: GameState.assistant.targetItemId || null,
+    targetSlotIndex: GameState.assistant.targetSlotIndex ?? -1,
+    cursorFx: GameState.assistant.cursorFx ? {
+      active: !!GameState.assistant.cursorFx.active,
+      phase: GameState.assistant.cursorFx.phase,
+      itemName: GameState.assistant.cursorFx.itemName,
+      x: Math.round(GameState.assistant.cursorFx.x),
+      y: Math.round(GameState.assistant.cursorFx.y),
+      targetX: Math.round(GameState.assistant.cursorFx.targetX),
+      targetY: Math.round(GameState.assistant.cursorFx.targetY),
+    } : null,
+  } : null;
+
+  const pendingMutants = GameState.pendingMutants.map(mutant => ({
+    plantSlot: mutant.plantSlot,
+    segIndex: mutant.segIndex,
+    side: mutant.side,
+    timeLeftMs: Math.round(mutant.timeLeft),
+    x: Math.round(mutant.x),
+    y: Math.round(mutant.y),
+  }));
 
   return {
     coordinateSystem: 'origin top-left; +x right; +y down',
@@ -1816,6 +1982,7 @@ function buildStateSnapshot() {
     gameTimeMs: Math.round(GameState.gameTime),
     seeds: { ...GameState.seeds },
     flags: { ...GameState.flags },
+    upgrades: { ...GameState.upgrades },
     selectedWeapon: GameState.weapons.selected,
     launchpads: [...GameState.launchpads],
     weapons: {
@@ -1845,6 +2012,9 @@ function buildStateSnapshot() {
       h: Math.round(ad.h),
     })),
     shop,
+    assistant,
+    duckGroundCount: GameState.duckGrounds.length,
+    pendingMutants,
     plants,
     pests,
     announcement: GameState.announcementOverlay ? [...GameState.announcementOverlay.lines] : null,
@@ -1887,16 +2057,22 @@ function installBrowserHooks() {
   window.render_game_to_text = renderGameToText;
   window.advanceTime = ms => Promise.resolve(step(ms));
   window.__TOMATO_DEBUG__ = {
+    cfg: CFG,
     state: GameState,
+    sprites: SPRITES,
     restart,
     step,
     snapshot: buildStateSnapshot,
     shopItems: SHOP_ITEMS,
+    openEditor,
+    closeEditor,
     helpers: {
       Plant,
       MutantTomato,
       spawnPestOfType,
       applyWeapon: weaponSystem.applyWeapon,
+      purchaseShopSlot: shopSystem.purchaseShopSlot,
+      getShopSlotBox: shopSystem.getShopSlotBox,
       noteTomatoAttack,
       selectWeapon: weaponSystem.selectWeapon,
     },
@@ -1971,8 +2147,66 @@ const baseRender = render;
 render = function(ctx) {
   if (GameState.phase === 'gate') { drawPasswordGate(ctx || gameCtx); return; }
   if (GameState.phase === 'comic') { drawComicIntro(ctx || gameCtx); return; }
+  if (GameState.phase === 'debug_menu') { drawDebugMenu(ctx || gameCtx); return; }
   baseRender(ctx || gameCtx);
 };
+
+const DEBUG_MENU_BOXES = [];
+function drawDebugMenu(ctx) {
+  ctx.fillStyle = 'rgba(5, 7, 10, 0.95)';
+  ctx.fillRect(0, 0, CFG.canvas.w, CFG.canvas.h);
+  
+  ctx.fillStyle = '#ffcc66';
+  ctx.font = 'bold 32px "Courier New", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SECRET ENDING SELECTOR', CFG.canvas.w/2, 80);
+
+  const endings = Object.keys(ENDING_DEFINITIONS);
+  const colW = 460;
+  const rowH = 46;
+  const startX = CFG.canvas.w/2 - colW/2;
+  const startY = 140;
+  
+  DEBUG_MENU_BOXES.length = 0;
+  for (let i = 0; i < endings.length; i++) {
+    const id = endings[i];
+    const def = ENDING_DEFINITIONS[id];
+    const x = startX;
+    const y = startY + i * rowH;
+    const w = colW;
+    const h = 38;
+    
+    const hover = GameState.mouseX >= x && GameState.mouseX <= x + w && GameState.mouseY >= y && GameState.mouseY <= y + h;
+    
+    ctx.fillStyle = hover ? '#2a3b4d' : '#151d26';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = hover ? '#66ddff' : '#3d4d5e';
+    ctx.lineWidth = hover ? 2 : 1;
+    ctx.strokeRect(x, y, w, h);
+    
+    ctx.fillStyle = hover ? '#ffffff' : '#9aa4b2';
+    ctx.font = 'bold 15px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(def.name, x + w/2, y + 24);
+    
+    DEBUG_MENU_BOXES.push({ x, y, w, h, id });
+  }
+
+  ctx.fillStyle = '#ff6666';
+  ctx.font = 'bold 14px "Courier New", monospace';
+  ctx.fillText('[ PRESS ESC TO CANCEL ]', CFG.canvas.w/2, CFG.canvas.h - 60);
+}
+
+function handleDebugMenuClick(sx, sy) {
+  for (const box of DEBUG_MENU_BOXES) {
+    if (sx >= box.x && sx <= box.x + box.w && sy >= box.y && sy <= box.y + box.h) {
+      GameState.phase = 'gameover';
+      GameState.gameoverReason = 'debug_test';
+      GameState.gameoverEnding = makeEndingState(box.id);
+      return;
+    }
+  }
+}
 
 function handleGateKey(e) {
   if (GameState.phase !== 'gate') return;
@@ -2005,6 +2239,12 @@ function init() {
   GameState.phase = 'gate';
   GameState.intro = { input: '', error: '', comicIndex: 0, unlocked: false };
   window.addEventListener('keydown', handleGateKey);
+  window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 't') GameState.debugTDown = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key.toLowerCase() === 't') GameState.debugTDown = false;
+  });
   INTRO_COMIC_IMAGES.forEach(img => { const _ = img.complete; });
 }
 

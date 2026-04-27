@@ -151,6 +151,14 @@ function handleClick(sx, sy) {
     return;
   }
   if (GameState.phase === 'gameover') {
+    const ending = GameState.gameoverEnding;
+    if (ending && !ending.complete) {
+      ending.frameIndex = (ending.frameIndex || 0) + 1;
+      if (ending.frameIndex >= ending.frameCount) {
+        ending.complete = true;
+      }
+      return;
+    }
     restart();
     return;
   }

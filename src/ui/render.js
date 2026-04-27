@@ -1,5 +1,5 @@
 export function createRenderUI(ctx) {
-  const { GameState, CFG, PHASES, drawSprite, drawSpriteMatrix, scaleFor, formatMoney, drawParticles, drawTicker, drawShopPanel, drawWeaponBar, drawPortfolioHint, getCurrentPhase, getDimensionSnapshot, WEAPON_LABELS, getSlotBox, slotCenterX, hasDuckCurse, adCloseBox, rand, clamp } = ctx;
+  const { GameState, CFG, PHASES, drawSprite, drawSpriteMatrix, scaleFor, formatMoney, drawParticles, drawTicker, drawShopPanel, drawWeaponBar, drawPortfolioHint, getCurrentPhase, getDimensionSnapshot, WEAPON_LABELS, getSlotBox, slotCenterX, hasDuckCurse, adCloseBox, rand, clamp, ownedShares } = ctx;
 
 // -----------------------------------------------------------------------------
 // 21. RENDER
@@ -51,6 +51,31 @@ function drawHUD(ctx) {
                CFG.shopX - 20, 27);
 
   ctx.textAlign = 'left';
+}
+
+function drawGoldenTicket(ctx) {
+  const owned = ownedShares ? ownedShares() : [];
+  if (!owned.length) return;
+  const x = 10;
+  const y = CFG.newsBarY + 4;
+  // glow
+  ctx.save();
+  ctx.globalAlpha = 0.2 + 0.1 * Math.sin(GameState.gameTime / 250);
+  ctx.fillStyle = '#ffcc66';
+  ctx.fillRect(x - 2, y - 2, 36, 24);
+  ctx.restore();
+  // ticket bg
+  ctx.fillStyle = '#1a1508';
+  ctx.fillRect(x, y, 32, 20);
+  ctx.strokeStyle = '#ffcc66';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, 32, 20);
+  drawSprite(ctx, 'golden_ticket', x + 8, y + 2, 1);
+  // label
+  ctx.fillStyle = '#ffdd66';
+  ctx.font = 'bold 10px "Courier New", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SHARE', x + 36, y + 14);
 }
 
 function drawPlant(ctx, plant) {
@@ -179,6 +204,210 @@ function drawDrone(ctx) {
 
   const bobY = Math.sin(GameState.gameTime / 180) * 4;
   drawSprite(ctx, 'icon_drone', d.x - 20, d.y - 20 + bobY, scaleFor('icon_drone', 40));
+}
+
+function drawHarvestDrone(ctx) {
+  const hd = GameState.weapons.harvestDrone;
+  if (!hd.unlocked || !hd.active) return;
+
+  const bobY = Math.sin(GameState.gameTime / 220) * 3;
+  const beingAttacked = !!hd.attackerPestId;
+
+  // Attack warning pulse
+  if (beingAttacked) {
+    ctx.save();
+    ctx.globalAlpha = 0.18 + 0.12 * Math.sin(GameState.gameTime / 80);
+    ctx.fillStyle = '#ff4444';
+    ctx.beginPath();
+    ctx.arc(hd.x, hd.y + bobY, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Harvest beam flash
+  if (hd.beamFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = clamp(hd.beamFlash / 300, 0, 1) * 0.8;
+    ctx.strokeStyle = '#ffcc44';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(hd.x, hd.y + bobY + 10);
+    ctx.lineTo(hd.x, hd.y + bobY + 28);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Sprite
+  drawSprite(ctx, 'icon_harvest_drone', hd.x - 20, hd.y - 20 + bobY, scaleFor('icon_harvest_drone', 40));
+
+  // Health bar (only when damaged)
+  if (hd.health < 1.2) {
+    const bw = 36, bh = 4;
+    const bx = hd.x - bw / 2;
+    const by = hd.y - 27 + bobY;
+    ctx.fillStyle = '#330000';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = hd.health > 0.6 ? '#ffcc44' : '#ff4444';
+    ctx.fillRect(bx, by, bw * (hd.health / 1.2), bh);
+    ctx.strokeStyle = '#ffffff44';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+  }
+}
+
+function getAssistantSpriteKey(state) {
+  switch (state) {
+    case 'noticing': return 'assistant_robot_noticing';
+    case 'purchasing': return 'assistant_robot_purchasing';
+    case 'apologising': return 'assistant_robot_apologising';
+    case 'popup': return 'assistant_robot_popup';
+    case 'worried': return 'assistant_robot_worried';
+    default: return 'assistant_robot_idle';
+  }
+}
+
+function drawPendingMutants(ctx) {
+  if (!GameState.pendingMutants || !GameState.pendingMutants.length) return;
+  for (const mutant of GameState.pendingMutants) {
+    const plant = GameState.plants[mutant.plantSlot];
+    if (!plant || mutant.segIndex >= plant.segments.length) continue;
+    const detachT = 1 - mutant.timeLeft / mutant.maxTime;
+    const pulse = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(GameState.gameTime / 110 + mutant.segIndex));
+    const wobble = Math.sin(GameState.gameTime / 70 + mutant.segIndex * 0.9) * (1.2 + detachT * 3.5);
+    const x = mutant.x + wobble;
+    const y = mutant.y - detachT * 4;
+    const anchorX = plant.getScreenX();
+    const anchorY = plant.getScreenYForSegment(mutant.segIndex) + 10;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(140,255,68,${0.35 + detachT * 0.4})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(anchorX, anchorY);
+    ctx.lineTo(x + 16, y + 20);
+    ctx.stroke();
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = detachT > 0.7 ? '#ff66aa' : '#8cff44';
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 16, 18 + detachT * 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.35 + detachT * 0.45;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x + 16, y + 16, 10 + detachT * 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    drawSprite(ctx, 'tomato_mutant', x, y, scaleFor('tomato_mutant', 32));
+
+    if (detachT > 0.55) {
+      ctx.save();
+      ctx.globalAlpha = 0.6 + 0.25 * Math.sin(GameState.gameTime / 60);
+      ctx.fillStyle = '#ffdd66';
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('UNSTABLE', x + 16, y - 6);
+      ctx.restore();
+      ctx.textAlign = 'left';
+    }
+  }
+}
+
+function drawSpeechBubble(ctx, x, y, maxWidth, text, tailX, tailY, state) {
+  if (!text) return;
+  const pad = 12;
+  const lineHeight = 15;
+  ctx.save();
+  ctx.font = '13px "Courier New", monospace';
+  const lines = wrapTextLines(ctx, text, maxWidth - pad * 2).slice(0, 4);
+  const width = maxWidth;
+  const height = pad * 2 + lines.length * lineHeight;
+  const border = state === 'worried' ? '#ff9966' : '#8be7ff';
+  const fill = state === 'worried' ? 'rgba(40,18,18,0.96)' : 'rgba(230,244,255,0.96)';
+  const textColor = state === 'worried' ? '#ffe6d2' : '#13202b';
+
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeRect(x, y, width, height);
+
+  ctx.beginPath();
+  ctx.moveTo(Math.min(x + width - 30, Math.max(x + 24, tailX - 12)), y + height);
+  ctx.lineTo(tailX - 6, tailY - 12);
+  ctx.lineTo(Math.min(x + width - 10, Math.max(x + 44, tailX + 8)), y + height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'left';
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x + pad, y + pad + 12 + i * lineHeight);
+  }
+  ctx.restore();
+}
+
+function drawAssistantCursor(ctx) {
+  const fx = GameState.assistant && GameState.assistant.cursorFx;
+  if (!fx || !fx.active) return;
+  const pulse = 1 + 0.12 * Math.sin(GameState.gameTime / 90);
+  drawSprite(ctx, 'ai_cursor_large', fx.x - 18, fx.y - 8, scaleFor('ai_cursor_large', 72) * pulse);
+
+  if (fx.phase === 'clicking' || fx.phase === 'purchased') {
+    ctx.save();
+    ctx.strokeStyle = fx.phase === 'clicking' ? '#ffffff' : '#8be7ff';
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = fx.phase === 'clicking' ? 0.9 : 0.75;
+    ctx.beginPath();
+    ctx.arc(fx.targetX, fx.targetY, fx.phase === 'clicking' ? 18 : 28, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawAssistant(ctx) {
+  const assistant = GameState.assistant;
+  if (!assistant || !assistant.unlocked || !assistant.alive) return;
+
+  const spriteKey = getAssistantSpriteKey(assistant.state);
+  const bob = Math.sin(GameState.gameTime / (assistant.state === 'worried' ? 90 : 180)) * (assistant.state === 'worried' ? 5 : 3);
+  const x = assistant.x;
+  const y = assistant.y + bob;
+
+  ctx.save();
+  ctx.globalAlpha = 0.18 + (assistant.state === 'worried' ? 0.16 : 0.08) * (0.5 + 0.5 * Math.sin(GameState.gameTime / 120));
+  ctx.fillStyle = assistant.state === 'worried' ? '#ff9966' : '#8be7ff';
+  ctx.beginPath();
+  ctx.arc(x + 64, y + 68, 44, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  drawSprite(ctx, spriteKey, x, y, scaleFor(spriteKey, 128));
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(9,14,18,0.88)';
+  ctx.fillRect(x + 10, y + 112, 118, 16);
+  ctx.strokeStyle = assistant.state === 'worried' ? '#ff9966' : '#8be7ff';
+  ctx.strokeRect(x + 10, y + 112, 118, 16);
+  ctx.fillStyle = '#e9f8ff';
+  let labelSize = 10;
+  const label = assistant.name || 'AI ASSISTANT';
+  do {
+    ctx.font = `bold ${labelSize}px "Courier New", monospace`;
+    labelSize--;
+  } while (labelSize >= 8 && ctx.measureText(label).width > 110);
+  ctx.textAlign = 'center';
+  ctx.fillText(label, x + 69, y + 123);
+  ctx.restore();
+  ctx.textAlign = 'left';
+
+  if (assistant.speech && assistant.speech.timeLeft > 0) {
+    const bubbleW = 238;
+    const bubbleX = Math.max(16, Math.min(CFG.shopX - bubbleW - 12, x - 92));
+    const bubbleY = Math.max(CFG.farmTop + 8, y - 64);
+    drawSpeechBubble(ctx, bubbleX, bubbleY, bubbleW, assistant.speech.text, x + 52, y + 34, assistant.state);
+  }
 }
 
 function drawBuffsRow(ctx) {
@@ -452,6 +681,7 @@ function render(ctx) {
   // HUD + ticker
   drawHUD(ctx);
   drawTicker(ctx);
+  drawGoldenTicket(ctx);
 
   // Slots + launch pads
   for (let i = 0; i < CFG.slotCount; i++) {
@@ -488,6 +718,7 @@ function render(ctx) {
   for (const p of GameState.plants) {
     if (p) drawPlant(ctx, p);
   }
+  drawPendingMutants(ctx);
 
   // Pests
   for (const p of GameState.pests) {
@@ -505,8 +736,9 @@ function render(ctx) {
     }
   }
 
-  // Drone support unit
+  // Drone support units
   drawDrone(ctx);
+  drawHarvestDrone(ctx);
 
   // Particles + popups + debris
   drawParticles(ctx);
@@ -518,6 +750,8 @@ function render(ctx) {
   drawShopPanel(ctx);
   drawWeaponBar(ctx);
   drawBuffsRow(ctx);
+  drawAssistant(ctx);
+  drawAssistantCursor(ctx);
 
   // Phase banner
   if (GameState.phaseBanner) drawPhaseBanner(ctx);
@@ -543,5 +777,5 @@ function render(ctx) {
 
 
 
-  return { drawHUD, drawPlant, drawDrone, drawBuffsRow, drawPhaseBanner, drawAd, drawNukeFlash, drawAnnouncement, wrapTextLines, drawGagDialog, drawBuffFlash, drawGlitch, drawLaserFlash, drawCursorTarget, render };
+  return { drawHUD, drawGoldenTicket, drawPlant, drawPendingMutants, drawDrone, drawHarvestDrone, drawSpeechBubble, drawAssistant, drawAssistantCursor, drawBuffsRow, drawPhaseBanner, drawAd, drawNukeFlash, drawAnnouncement, wrapTextLines, drawGagDialog, drawBuffFlash, drawGlitch, drawLaserFlash, drawCursorTarget, render };
 }

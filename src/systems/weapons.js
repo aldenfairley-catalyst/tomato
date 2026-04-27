@@ -72,12 +72,15 @@ function drawWeaponBar(ctx) {
     ctx.font = '11px "Courier New", monospace';
     if (key === 'drone') {
       ctx.fillText('$' + CFG.weapon.drone.costPerSec + '/s  r:' + CFG.weapon.drone.attackRadius + '  ch:' + state.chargesLeft, box.x + 46, box.y + 52);
+      const statusText = state.active
+        ? (GameState.upgrades.droneUpgrade ? 'ACTIVE+' : 'ACTIVE')
+        : (GameState.upgrades.droneUpgrade ? 'LOCAL AREA+' : 'LOCAL AREA');
       if (state.active) {
         ctx.fillStyle = '#66ff66';
-        ctx.fillText('ACTIVE', box.x + 46, box.y + 66);
+        ctx.fillText(statusText, box.x + 46, box.y + 66);
       } else {
         ctx.fillStyle = '#888';
-        ctx.fillText('LOCAL AREA', box.x + 46, box.y + 66);
+        ctx.fillText(statusText, box.x + 46, box.y + 66);
       }
     } else if (key === 'popup') {
       ctx.fillText('$' + CFG.weapon.popup.costPerSec + '/s  -75% popups', box.x + 46, box.y + 52);
@@ -151,6 +154,34 @@ function selectWeapon(key) {
     GameState.weapons.selected = null;
   } else {
     GameState.weapons.selected = key;
+  }
+
+  // Debug Trigger: 3 clicks on Nuke while holding 'T'
+  if (key === 'nuke' && GameState.debugTDown) {
+    GameState.debugClicks = (GameState.debugClicks || 0) + 1;
+    if (GameState.debugClicks >= 3) {
+      GameState.debugClicks = 0;
+      GameState.phase = 'debug_menu';
+      flashBuff('DEBUG MENU OPEN');
+    }
+  } else {
+    GameState.debugClicks = 0;
+  }
+
+  if (key === 'nuke' && GameState.weapons.selected === 'nuke') {
+    const assistant = GameState.assistant;
+    if (assistant && assistant.unlocked && assistant.alive) {
+      assistant.cursorFx = null;
+      assistant.targetItemId = null;
+      assistant.targetSlotIndex = -1;
+      assistant.state = 'worried';
+      assistant.stateTime = 2400;
+      assistant.speech = {
+        text: ctx.getAssistantNukeWarningLine(assistant.name, ctx.pick),
+        timeLeft: 4200,
+        maxTime: 4200,
+      };
+    }
   }
 }
 
@@ -293,6 +324,45 @@ function detonateNuke(x, y) {
       if (plant.segments[0]) plant.damageSegment(0, 1);
     }
   }
+  if (GameState.pendingMutants && GameState.pendingMutants.length) {
+    GameState.pendingMutants = GameState.pendingMutants.filter(mutant => {
+      const dist = Math.hypot(mutant.x - x, mutant.y - y);
+      if (dist < r * 1.02) {
+        spawnBurst(mutant.x, mutant.y, 10, ['#8cff44', '#ffffff', '#ff4444']);
+        return false;
+      }
+      return true;
+    });
+  }
+  if (GameState.assistant && GameState.assistant.unlocked && GameState.assistant.alive) {
+    const ax = GameState.assistant.x + 64;
+    const ay = GameState.assistant.y + 64;
+    const dist = Math.hypot(ax - x, ay - y);
+    if (dist < r * 1.2) {
+      GameState.assistant.alive = false;
+      GameState.assistant.speech = null;
+      GameState.assistant.cursorFx = null;
+      GameState.assistant.targetItemId = null;
+      GameState.assistant.targetSlotIndex = -1;
+      spawnGlobalPopup('AI ASSISTANT OFFLINE', '#ff4444');
+      spawnBurst(ax, ay, 30, ['#66ddff', '#ffffff', '#ff4444']);
+    }
+  }
+  if (GameState.duckGrounds && GameState.duckGrounds.length) {
+    let ducksLost = 0;
+    GameState.duckGrounds = GameState.duckGrounds.filter(duck => {
+      const dist = Math.hypot(duck.x - x, duck.y - y);
+      if (dist < r * 1.1) {
+        ducksLost++;
+        spawnBurst(duck.x, duck.y, 8, ['#ffdd66', '#ffffff', '#ff4444']);
+        return false;
+      }
+      return true;
+    });
+    if (ducksLost > 0) {
+      spawnPopup(x, y + 24, `${ducksLost} DUCK${ducksLost === 1 ? '' : 'S'} LOST`, '#ffdd66');
+    }
+  }
   GameState.glitchTimer = 900;
   spawnGlobalPopup('NUCLEAR STRIKE AUTHORISED', '#6b2f9e');
   spawnGlobalPopup('NUCLEAR FALLOUT DETECTED', '#ff66ff');
@@ -311,7 +381,7 @@ function detonateNuke(x, y) {
 }
 
 function fireOrbitalLaser(x, y) {
-  const beamHalfWidth = 5;
+  const beamHalfWidth = 30;
   spawnShockwave(x, y, CFG.weapon.laser.radius * 2.6, ['#66ddff', '#ffffff', '#ffffff', '#ff4444']);
   GameState.laserFlashTimer = 1500;
   GameState.glitchTimer = Math.max(GameState.glitchTimer, 450);
@@ -371,6 +441,8 @@ function fireManure(x, y) {
     const c = p.center();
     if (Math.hypot(c.x - x, c.y - y) < CFG.weapon.manure.radius) {
       p.slowTime = CFG.weapon.manure.slowMs;
+      // Impact worms a bit harder to satisfy the "impact" requirement
+      if (p.type === 'fruitworm') p.hit(); 
       p.hit();
     }
   }
@@ -424,6 +496,10 @@ function updateDroneWeapon(dt) {
   const d = GameState.weapons.drone;
   if (d.beamFlash > 0) d.beamFlash = Math.max(0, d.beamFlash - dt);
   if (!d.unlocked || !d.active) return;
+  const moveSpeed = GameState.upgrades.droneUpgrade ? CFG.weapon.drone.moveSpeed * 1.35 : CFG.weapon.drone.moveSpeed;
+  const killInterval = GameState.upgrades.droneUpgrade ? CFG.weapon.drone.killIntervalMs * 0.8 : CFG.weapon.drone.killIntervalMs;
+  const patrolRetargetMs = GameState.upgrades.droneUpgrade ? CFG.weapon.drone.patrolRetargetMs * 0.8 : CFG.weapon.drone.patrolRetargetMs;
+  const attackRadius = CFG.weapon.drone.attackRadius;
 
   d.costAccum += dt * CFG.weapon.drone.costPerSec / 1000;
   while (d.costAccum >= 1) {
@@ -446,16 +522,16 @@ function updateDroneWeapon(dt) {
   d.patrolTimer += dt;
   if (target) {
     const c = target.center();
-    const desired = Math.min(bestDist, CFG.weapon.drone.attackRadius * 0.55);
+    const desired = Math.min(bestDist, attackRadius * 0.55);
     const ang = Math.atan2(c.y - d.y, c.x - d.x);
-    if (bestDist > CFG.weapon.drone.attackRadius * 0.45) {
+    if (bestDist > attackRadius * 0.45) {
       d.targetX = c.x - Math.cos(ang) * desired;
       d.targetY = c.y - Math.sin(ang) * desired - 24;
     } else {
       d.targetX = d.x + Math.cos(GameState.gameTime / 600) * 18;
       d.targetY = d.y + Math.sin(GameState.gameTime / 500) * 14;
     }
-  } else if (d.patrolTimer >= CFG.weapon.drone.patrolRetargetMs) {
+  } else if (d.patrolTimer >= patrolRetargetMs) {
     d.patrolTimer = 0;
     const livingPlants = GameState.plants.filter(Boolean);
     if (livingPlants.length) {
@@ -474,15 +550,15 @@ function updateDroneWeapon(dt) {
   const dy = d.targetY - d.y;
   const dist = Math.hypot(dx, dy);
   if (dist > 1) {
-    const step = CFG.weapon.drone.moveSpeed * dt;
+    const step = moveSpeed * dt;
     d.x += dx / dist * Math.min(step, dist);
     d.y += dy / dist * Math.min(step, dist);
   }
 
   d.killTimer += dt;
-  if (d.killTimer >= CFG.weapon.drone.killIntervalMs) {
+  if (d.killTimer >= killInterval) {
     d.killTimer = 0;
-    const inRange = alive.filter(p => Math.hypot(p.center().x - d.x, p.center().y - d.y) <= CFG.weapon.drone.attackRadius);
+    const inRange = alive.filter(p => Math.hypot(p.center().x - d.x, p.center().y - d.y) <= attackRadius);
     if (inRange.length > 0) {
       const victim = inRange.sort((a, b) => Math.hypot(a.center().x - d.x, a.center().y - d.y) - Math.hypot(b.center().x - d.x, b.center().y - d.y))[0];
       const vc = victim.center();
@@ -492,11 +568,164 @@ function updateDroneWeapon(dt) {
       d.beamFlash = 140;
       spawnBurst(victim.x + victim.size/2, victim.y + victim.size/2, 6, ['#66ddff', '#ffffff']);
       spawnPopup(victim.x + victim.size/2, victim.y - 6, 'ZAP', '#66ddff');
+      if (GameState.upgrades.droneUpgrade && inRange.length > 1 && Math.random() < 0.2) {
+        const second = inRange.find(p => p !== victim);
+        if (second) {
+          const sc = second.center();
+          second.hit();
+          spawnBurst(sc.x, sc.y, 4, ['#66ddff', '#ffffff']);
+          spawnPopup(sc.x, sc.y - 6, 'DOUBLE ZAP', '#66ddff');
+        }
+      }
     }
   }
 }
 
+// Flying pest types that will attack the harvest drone
+const FLYING_PEST_TYPES = new Set(['whitefly', 'psyllid', 'ai_roach']);
+const HARVEST_DRONE_DEFAULTS = Object.freeze({
+  moveSpeed: 0.101,
+  harvestRadius: 22,
+  bugAttackDamagePerMs: 1 / 10000,
+  retargetMs: 1500,
+});
 
+function updateHarvestDrone(dt) {
+  const hd = GameState.weapons.harvestDrone;
+  if (!hd) return;
+  if (!Number.isFinite(hd.x)) hd.x = 240;
+  if (!Number.isFinite(hd.y)) hd.y = 200;
+  if (!Number.isFinite(hd.targetX)) hd.targetX = hd.x;
+  if (!Number.isFinite(hd.targetY)) hd.targetY = hd.y;
+  if (!Number.isFinite(hd.health)) hd.health = 1.2;
+  if (!Number.isFinite(hd.retargetTimer)) hd.retargetTimer = 0;
+  if (!Number.isInteger(hd.targetPlantIdx)) hd.targetPlantIdx = -1;
+  if (!Number.isInteger(hd.targetSegIdx)) hd.targetSegIdx = -1;
+  if (hd.targetSide !== 'L' && hd.targetSide !== 'R') hd.targetSide = null;
+  if (!Number.isFinite(hd.beamFlash)) hd.beamFlash = 0;
+  if (hd.beamFlash > 0) hd.beamFlash = Math.max(0, hd.beamFlash - dt);
+  if (!hd.unlocked || !hd.active) return;
 
-  return { WEAPON_SLOTS, WEAPON_LABELS, getWeaponButtonBox, drawWeaponBar, handleWeaponBarClick, selectWeapon, togglePopupBlocker, toggleDrone, applyWeapon, detonateNuke, fireOrbitalLaser, fireManure, useFlame, updatePopupBlocker, updateDroneWeapon };
+  const hdCfg = { ...HARVEST_DRONE_DEFAULTS, ...(CFG.weapon?.harvestDrone || {}) };
+
+  // --- Bug attack check ---
+  const attacker = GameState.pests.find(p => !p.dead && FLYING_PEST_TYPES.has(p.type)
+    && Math.hypot(p.center().x - hd.x, p.center().y - hd.y) < 60);
+
+  if (attacker) {
+    hd.attackerPestId = attacker;
+    hd.health -= hdCfg.bugAttackDamagePerMs * dt;
+    if (hd.health <= 0) {
+      hd.active = false;
+      hd.unlocked = false;
+      spawnBurst(hd.x, hd.y, 14, ['#ffcc44', '#ff8800', '#ffffff']);
+      spawnGlobalPopup('HARVEST DRONE DESTROYED', '#ff4444');
+      return;
+    }
+    return; // frozen while under attack
+  } else {
+    hd.attackerPestId = null;
+  }
+
+  // --- Target selection ---
+  hd.retargetTimer += dt;
+  let targetValid = false;
+  if (hd.targetPlantIdx >= 0) {
+    const plant = GameState.plants[hd.targetPlantIdx];
+    if (plant && hd.targetSegIdx < plant.segments.length) {
+      const seg = plant.segments[hd.targetSegIdx];
+      const t = seg && seg.fruits[hd.targetSide];
+      if (t && t.state === 'ripe') targetValid = true;
+    }
+  }
+
+  if (!targetValid || hd.retargetTimer >= hdCfg.retargetMs) {
+    hd.retargetTimer = 0;
+    hd.targetPlantIdx = -1;
+    hd.targetSegIdx = -1;
+    hd.targetSide = null;
+    let bestDist = Infinity;
+    for (let pi = 0; pi < GameState.plants.length; pi++) {
+      const plant = GameState.plants[pi];
+      if (!plant) continue;
+      for (let si = 0; si < plant.segments.length; si++) {
+        for (const side of ['L', 'R']) {
+          const t = plant.segments[si].fruits[side];
+          if (!t || t.state !== 'ripe') continue;
+          const tx = plant.getScreenX() + (side === 'L' ? -12 : 12);
+          const ty = plant.getScreenYForSegment(si) - 10;
+          const dist = Math.hypot(tx - hd.x, ty - hd.y);
+          if (dist < bestDist) {
+            bestDist = dist;
+            hd.targetPlantIdx = pi;
+            hd.targetSegIdx = si;
+            hd.targetSide = side;
+          }
+        }
+      }
+    }
+  }
+
+  // --- Movement toward target ---
+  if (hd.targetPlantIdx >= 0) {
+    const plant = GameState.plants[hd.targetPlantIdx];
+    if (plant) {
+      hd.targetX = plant.getScreenX() + (hd.targetSide === 'L' ? -12 : 12);
+      hd.targetY = plant.getScreenYForSegment(hd.targetSegIdx) - 10;
+    }
+  } else {
+    hd.targetX = hd.x + Math.sin(GameState.gameTime / 700) * 20;
+    hd.targetY = hd.y + Math.cos(GameState.gameTime / 900) * 10;
+  }
+
+  hd.targetX = clamp(hd.targetX, 30, CFG.farmRight - 30);
+  hd.targetY = clamp(hd.targetY, CFG.farmTop + 30, CFG.groundY - 60);
+
+  const dx = hd.targetX - hd.x;
+  const dy = hd.targetY - hd.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist > 1) {
+    const step = hdCfg.moveSpeed * dt;
+    hd.x += (dx / dist) * Math.min(step, dist);
+    hd.y += (dy / dist) * Math.min(step, dist);
+  }
+
+  // --- Harvest check: only when directly overhead ---
+  if (hd.targetPlantIdx >= 0) {
+    const plant = GameState.plants[hd.targetPlantIdx];
+    if (plant && hd.targetSegIdx < plant.segments.length) {
+      const seg = plant.segments[hd.targetSegIdx];
+      const t = seg && seg.fruits[hd.targetSide];
+      if (t && t.state === 'ripe') {
+        const tx = plant.getScreenX() + (hd.targetSide === 'L' ? -12 : 12);
+        const ty = plant.getScreenYForSegment(hd.targetSegIdx) - 10;
+        if (Math.hypot(hd.x - tx, hd.y - ty) <= hdCfg.harvestRadius) {
+          const v = t.getValue();
+          if (GameState.taxPocalypseTriggered) {
+            GameState.stats.tomatoesConfiscated++;
+            GameState.stats.totalTaxed += v;
+          } else {
+            GameState.cash += v;
+            GameState.stats.totalEarned += v;
+          }
+          GameState.stats.tomatoesHarvested++;
+          seg.fruits[hd.targetSide] = null;
+          hd.beamFlash = 300;
+          spawnBurst(tx, ty, 6, ['#ffcc44', '#ffff88', '#ff8800']);
+          spawnPopup(tx, ty - 10, '+' + formatMoney(v), '#ffcc44');
+          hd.targetPlantIdx = -1;
+          hd.targetSegIdx = -1;
+          hd.targetSide = null;
+          hd.retargetTimer = 0;
+        }
+      } else {
+        hd.targetPlantIdx = -1;
+        hd.targetSegIdx = -1;
+        hd.targetSide = null;
+      }
+    }
+  }
+}
+
+  return { WEAPON_SLOTS, WEAPON_LABELS, getWeaponButtonBox, drawWeaponBar, handleWeaponBarClick, selectWeapon, togglePopupBlocker, toggleDrone, applyWeapon, detonateNuke, fireOrbitalLaser, fireManure, useFlame, updatePopupBlocker, updateDroneWeapon, updateHarvestDrone };
 }

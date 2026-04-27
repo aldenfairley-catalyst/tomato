@@ -114,6 +114,7 @@ const CFG = {
   weapon: {
     nuke: { cooldownMs: 30000, cost: 1000, radius: 260 },
     drone: { cooldownMs: 60000, costPerSec: 4, killIntervalMs: 700, attackRadius: 130, moveSpeed: 0.18, patrolRetargetMs: 2400 },
+    harvestDrone: { moveSpeed: 0.101, harvestRadius: 22, bugAttackDamagePerMs: 1 / 10000, retargetMs: 1500 },
     popup: { cooldownMs: 12000, costPerSec: 20, reduction: 0.75 },
     laser: { cooldownMs: 20000, cost: 2500, radius: 60 },
     manure: { cooldownMs: 2500, cost: 50, radius: 90, slowMs: 4000 },
@@ -125,11 +126,11 @@ const CFG = {
 
 // Phases now escalate more gently in early minutes and sharply in late
 const PHASES = [
-  { name: 'SEED ROUND',     until: 180000, pestIntervalMs: 14000, pestWaveSize: 1, ambientIntervalMs: 30000, adIntervalMs: 45000, taxIntervalMs: 18000, taxRate: 0.04, locust: false },
-  { name: 'SERIES A',       until: 360000, pestIntervalMs: 10000, pestWaveSize: 1, ambientIntervalMs: 22000, adIntervalMs: 35000, taxIntervalMs: 16000, taxRate: 0.05, locust: false },
-  { name: 'GROWTH STAGE',   until: 480000, pestIntervalMs:  7500, pestWaveSize: 2, ambientIntervalMs: 16000, adIntervalMs: 22000, taxIntervalMs: 14000, taxRate: 0.07, locust: false },
-  { name: 'DEVPOCALYPSE',   until: 600000, pestIntervalMs:  5000, pestWaveSize: 2, ambientIntervalMs:  8000, adIntervalMs: 14000, taxIntervalMs: 12000, taxRate: 0.10, locust: true,  locustInterval: 40000 },
-  { name: 'TAX CATASTROPHE',until: 720000, pestIntervalMs:  3500, pestWaveSize: 3, ambientIntervalMs:  5000, adIntervalMs:  9000, taxIntervalMs:  8000, taxRate: 0.15, locust: true,  locustInterval: 22000 },
+  { name: 'SEED ROUND',     until: 180000, pestIntervalMs: 14000, pestWaveSize: 1, ambientIntervalMs: 30000, adIntervalMs: 65000, taxIntervalMs: 18000, taxRate: 0.04, locust: false },
+  { name: 'SERIES A',       until: 360000, pestIntervalMs: 10000, pestWaveSize: 1, ambientIntervalMs: 22000, adIntervalMs: 55000, taxIntervalMs: 16000, taxRate: 0.05, locust: false },
+  { name: 'GROWTH STAGE',   until: 480000, pestIntervalMs:  7500, pestWaveSize: 2, ambientIntervalMs: 16000, adIntervalMs: 35000, taxIntervalMs: 14000, taxRate: 0.07, locust: false },
+  { name: 'DEVPOCALYPSE',   until: 600000, pestIntervalMs:  5000, pestWaveSize: 2, ambientIntervalMs:  8000, adIntervalMs: 22000, taxIntervalMs: 12000, taxRate: 0.10, locust: true,  locustInterval: 40000 },
+  { name: 'TAX CATASTROPHE',until: 720000, pestIntervalMs:  3500, pestWaveSize: 3, ambientIntervalMs:  5000, adIntervalMs: 15000, taxIntervalMs:  8000, taxRate: 0.15, locust: true,  locustInterval: 22000 },
 ];
 
 

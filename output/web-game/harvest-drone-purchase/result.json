@@ -1,0 +1,28 @@
+{
+  "result": {
+    "phase": "playing",
+    "cash": 3000,
+    "harvestDrone": {
+      "unlocked": true,
+      "active": true,
+      "x": 380.3551761275853,
+      "y": 216.8607397571332,
+      "targetX": 375.24087414404,
+      "targetY": 213.66968442030657,
+      "retargetTimer": 0,
+      "targetPlantIdx": -1,
+      "targetSegIdx": -1,
+      "targetSide": null,
+      "health": 1,
+      "attackerPestId": null,
+      "beamFlash": 0
+    },
+    "shopSlots": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "errors": []
+}

@@ -1,0 +1,86 @@
+{
+  "snapshot": {
+    "coordinateSystem": "origin top-left; +x right; +y down",
+    "phase": "playing",
+    "intro": {
+      "unlocked": true,
+      "comicIndex": 0,
+      "input": "",
+      "error": ""
+    },
+    "cash": 600,
+    "gameTimeMs": 117,
+    "seeds": {
+      "basic": 1,
+      "engineered": 0
+    },
+    "flags": {
+      "launchPadPurchased": false,
+      "tomatoAttackStories": 0
+    },
+    "upgrades": {
+      "nutrientFeed": false,
+      "plantGrowthRate": 0,
+      "tomatoGrowthRate": 0,
+      "largeChance": 0,
+      "goldChance": 0,
+      "pestResistance": 0,
+      "rotWindow": 0,
+      "droneUpgrade": false
+    },
+    "selectedWeapon": null,
+    "launchpads": [],
+    "weapons": {
+      "nuke": {
+        "unlocked": false,
+        "padPlaced": false,
+        "padPending": false
+      },
+      "drone": {
+        "unlocked": false,
+        "active": false
+      },
+      "popup": {
+        "unlocked": false,
+        "active": false
+      },
+      "laser": {
+        "unlocked": false
+      },
+      "manure": {
+        "unlocked": false
+      },
+      "flame": {
+        "unlocked": false
+      }
+    },
+    "ads": [],
+    "shop": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "assistant": {
+      "unlocked": false,
+      "alive": true,
+      "name": "",
+      "state": "idle",
+      "x": 0,
+      "y": 0,
+      "speech": null,
+      "targetItemId": null,
+      "targetSlotIndex": -1,
+      "cursorFx": null
+    },
+    "duckGroundCount": 0,
+    "pendingMutants": [],
+    "plants": [],
+    "pests": [],
+    "announcement": null,
+    "gagDialog": null,
+    "tickerTail": " redeployment to the cobalt mines was the best thing that ever happened to me.   +++   Cobalt mines announce new employee benefit: optional oxygen.   +++   The AI Ethics Board has been automated. Ethics up 2.3%.   +++   ",
+    "gameoverReason": null
+  },
+  "errors": []
+}

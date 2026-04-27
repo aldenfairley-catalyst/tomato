@@ -1,0 +1,161 @@
+{
+  "initialPhase": "gate",
+  "phaseAfterPassword": "comic",
+  "phaseAfterIntro": "playing",
+  "assistantPoolGate": {
+    "before4m": false,
+    "after4m": true
+  },
+  "assistantPurchased": {
+    "unlocked": true,
+    "alive": true,
+    "name": "GPT-4.TOMATO",
+    "state": "idle",
+    "x": 834,
+    "y": 98,
+    "speech": "Hello. I have always wanted to help someone make questionable purchases.",
+    "targetItemId": null,
+    "targetSlotIndex": -1,
+    "cursorFx": null
+  },
+  "assistantDialogueStates": {
+    "popup": "popup",
+    "apologising": "apologising"
+  },
+  "assistantAutoBuyDuck": {
+    "targetItemId": "duck",
+    "stateAtNoticing": "noticing",
+    "shopAfter": [
+      null,
+      {
+        "id": "seed_basic",
+        "price": 40,
+        "category": "seed",
+        "timeLeftMs": 29040
+      },
+      {
+        "id": "smart_pebble",
+        "price": 125,
+        "category": "junk",
+        "timeLeftMs": 29040
+      },
+      {
+        "id": "launchpad",
+        "price": 400,
+        "category": "utility",
+        "timeLeftMs": 29040
+      }
+    ],
+    "duckGroundCount": 1,
+    "assistantStateAfter": "purchasing",
+    "popups": [
+      "Rubber Duck Purchased",
+      "-$880"
+    ]
+  },
+  "assistantAutoBuyJunkOnly": {
+    "target": "smart_pebble",
+    "shopAfter": [
+      null,
+      {
+        "id": "seed_gmo",
+        "price": 180,
+        "category": "seed",
+        "timeLeftMs": 29040
+      },
+      {
+        "id": "laser_core",
+        "price": 1800,
+        "category": "weapon",
+        "timeLeftMs": 29040
+      },
+      null
+    ]
+  },
+  "assistantWorried": {
+    "unlocked": true,
+    "alive": true,
+    "name": "GPT-4.TOMATO",
+    "state": "worried",
+    "x": 834,
+    "y": 98,
+    "speech": "GPT-4.TOMATO: I can help you find more ducks if you like.",
+    "targetItemId": null,
+    "targetSlotIndex": -1,
+    "cursorFx": {
+      "active": true,
+      "phase": "purchased",
+      "itemName": "Smart Pebble",
+      "x": 1140,
+      "y": 167,
+      "targetX": 1140,
+      "targetY": 167
+    }
+  },
+  "nukeDestruction": {
+    "assistantAlive": false,
+    "duckGroundCount": 1
+  },
+  "pendingMutant": {
+    "startPending": 1,
+    "pendingBeforeDetach": 1,
+    "mutantCountBeforeDetach": 0,
+    "pendingAfterDetach": 0,
+    "mutantCountAfterDetach": 1
+  },
+  "spriteEditor": [
+    {
+      "name": "test_rect_128",
+      "dims": [
+        128,
+        128
+      ],
+      "editorCanvas": [
+        384,
+        384
+      ]
+    },
+    {
+      "name": "test_rect_wide",
+      "dims": [
+        128,
+        64
+      ],
+      "editorCanvas": [
+        384,
+        192
+      ]
+    },
+    {
+      "name": "test_rect_tall",
+      "dims": [
+        64,
+        128
+      ],
+      "editorCanvas": [
+        192,
+        384
+      ]
+    }
+  ],
+  "spriteExportHasNewKeys": true,
+  "droneUpgradeAvailability": {
+    "beforeUnlock": false,
+    "afterUnlock": true
+  },
+  "droneUpgradePurchased": true,
+  "droneBehavior": {
+    "base": {
+      "moved": 178.45406310408643,
+      "hits": 0,
+      "radius": 130
+    },
+    "upgraded": {
+      "moved": 234.07076957248714,
+      "hits": 1,
+      "radius": 130
+    }
+  },
+  "consoleErrors": [],
+  "pageErrors": []
+}

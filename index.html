@@ -34,6 +34,9 @@
             <option value="16" selected>16x16</option>
             <option value="32">32x32</option>
             <option value="64">64x64</option>
+            <option value="128">128x128</option>
+            <option value="128x64">128x64</option>
+            <option value="64x128">64x128</option>
           </select>
         </div>
         <input id="ed-new-name" type="text" placeholder="sprite_name" style="width:100%; padding:4px; background:#222240; color:#ddd; border:1px solid #556; font-family:monospace;">
@@ -70,7 +73,7 @@
       <div class="panel">
         <h3>Preview</h3>
         <div style="display:flex; gap:10px; align-items:center;">
-          <canvas id="ed-preview" width="96" height="96"></canvas>
+          <canvas id="ed-preview" width="160" height="160"></canvas>
           <div style="font-size:11px;">
             <div>Speed (ms/frame):</div>
             <input id="ed-anim-speed" type="number" value="500" min="50" max="2000" step="50" style="width:70px; padding:2px;">
